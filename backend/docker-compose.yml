@@ -1,0 +1,10 @@
+services:
+  cpp-backend-template:
+    build:
+      context: .
+    restart: unless-stopped
+    ports:
+      - "${PORT}:${PORT}"
+    environment:
+      - PORT=${PORT}
+      - BUILD_TYPE=${BUILD_TYPE}
