@@ -11,4 +11,4 @@ CMakeSettings.json
 vcpkg-configuration.json
 vcpkg_installed
 
-.env
+env.h

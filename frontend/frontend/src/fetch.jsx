@@ -1,5 +1,5 @@
 import { useState } from "react";
-import "./fetch.css";
+import "./Fetch.css";
 function SendData() {
   // form fields in state
 const drivers = [[40.4174, -74.4927]];

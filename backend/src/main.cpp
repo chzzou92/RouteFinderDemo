@@ -10,6 +10,7 @@
 #include <curl/curl.h>
 #include <future>
 #include "utils/Utils.hpp"
+#include "env.h"
 
 struct Coord {
     double lat, lng;
@@ -35,15 +36,14 @@ struct PairCoordHash {
     }
 };
 
-// (2) A small helper to capture libcurl’s response into a std::string
+// A small helper to capture libcurl’s response into a std::string
 static size_t _curlWrite(void* buf, size_t size, size_t nmemb, void* up) {
     std::string* resp = static_cast<std::string*>(up);
     resp->append(static_cast<char*>(buf), size * nmemb);
     return size * nmemb;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// (3) Simple HTTP GET (you already had this):
+//  Simple HTTP GET (you already had this):
 std::string httpGet(const std::string& url) {
     CURL* curl = curl_easy_init();
     std::string response;
@@ -55,8 +55,8 @@ std::string httpGet(const std::string& url) {
     return response;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// (4) New: HTTP POST that sends a JSON body & returns the response body as a string.
+
+// HTTP POST that sends a JSON body & returns the response body as a string
 std::string httpPost(const std::string& url, const std::string& jsonBody) {
     CURL* curl = curl_easy_init();
     std::string response;
@@ -78,17 +78,10 @@ std::string httpPost(const std::string& url, const std::string& jsonBody) {
     return response;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// (5) getTime now uses Google’s Routes API (Compute Route Matrix):
+
+//  getTime uses Google’s Routes API 
 int getTime(const Coord& start, const Coord& end, const std::string& apiKey) {
     // 1) Build the Distance Matrix GET URL
-    //
-    //    We do NOT URL‐encode the comma or pipe by hand because libcurl can handle
-    //    the plain characters “,” and “|” safely in the query string. If you run
-    //    into issues, you could replace them with “%2C” and “%7C”, but typically
-    //    "%3A%2F%2F" style encoding is not needed around commas or pipes.
-    //
-    //https://maps.googleapis.com/maps/api/distancematrix/json?destinations=40.659569%2C-73.933783%7C40.729029%2C-73.851524%7C40.6860072%2C-73.6334271%7C40.598566%2C-73.7527626&origins=40.6655101%2C-73.89188969999998&key=AIzaSyBkcKD9VWzlOsXX8Hke0caTl2-dmCwqpco
     std::ostringstream qs;
     qs << "https://maps.googleapis.com/maps/api/distancematrix/json"
         << "?destinations=" << end.lat << "%2C" << end.lng
@@ -355,8 +348,8 @@ int main()
     std::unordered_map<int, int> prev; 
     static constexpr int INF = std::numeric_limits<int>::max();
     std::vector<int> dist(N, INF);
-    const std::string token = "AIzaSyBkcKD9VWzlOsXX8Hke0caTl2-dmCwqpco";
-
+    const std::string token = GOOGLE_API_KEY;
+    
     std::vector<int> path; int shortestTime = INF; 
 
     int x = 0;
