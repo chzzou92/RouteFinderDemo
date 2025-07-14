@@ -1,4 +1,3 @@
-// MainApp.jsx
 import { useRef, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import mapboxgl from "mapbox-gl";
