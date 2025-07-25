@@ -18,6 +18,7 @@ export default function MainApp() {
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const routesRef = useRef([]);
   const markersRef = useRef([]);
+  const [fetchData, setFetchData] = useState(null);
   const drivers = [[-74.4927, 40.4174]];
   const passengers = [
     [
@@ -32,55 +33,55 @@ export default function MainApp() {
       [-74.48454, 40.56596],
       [-74.611447, 40.555897],
     ],
-    [
-      [-74.434529, 40.480098],
-      [-74.41297, 40.343104],
-    ],
-    [
-      [-74.44878, 40.482294],
-      [-74.570587, 40.340292],
-    ],
-    [
-      [-74.449443, 40.592058],
-      [-74.375534, 40.694155],
-    ],
-    [
-      [-74.452944, 40.484038],
-      [-74.267957, 40.461627],
-    ],
-    [
-      [-74.53506, 40.485142],
-      [-74.469859, 40.615775],
-    ],
-    [
-      [-74.37787, 40.47876],
-      [-74.29261, 40.570663],
-    ],
-    [
-      [-74.462616, 40.487974],
-      [-74.581453, 40.407822],
-    ],
+    // [
+    //   [-74.434529, 40.480098],
+    //   [-74.41297, 40.343104],
+    // ],
+    // [
+    //   [-74.44878, 40.482294],
+    //   [-74.570587, 40.340292],
+    // ],
+    // [
+    //   [-74.449443, 40.592058],
+    //   [-74.375534, 40.694155],
+    // ],
+    // [
+    //   [-74.452944, 40.484038],
+    //   [-74.267957, 40.461627],
+    // ],
+    // [
+    //   [-74.53506, 40.485142],
+    //   [-74.469859, 40.615775],
+    // ],
+    // [
+    //   [-74.37787, 40.47876],
+    //   [-74.29261, 40.570663],
+    // ],
+    // [
+    //   [-74.462616, 40.487974],
+    //   [-74.581453, 40.407822],
+    // ],
   ];
-  const logMaps = () => {
-    console.log("=== Drivers Map ===");
-    driversMap.forEach((cords, index) => {
-      if (cords) {
-        console.log(`Driver ${index}: [${cords[0]}, ${cords[1]}]`);
-      } else {
-        console.log(`Driver ${index}: Not set`);
-      }
-    });
+  // const logMaps = () => {
+  //   console.log("=== Drivers Map ===");
+  //   driversMap.forEach((cords, index) => {
+  //     if (cords) {
+  //       console.log(`Driver ${index}: [${cords[0]}, ${cords[1]}]`);
+  //     } else {
+  //       console.log(`Driver ${index}: Not set`);
+  //     }
+  //   });
 
-    console.log("=== Passengers Map ===");
-    passengersMap.forEach((pair, index) => {
-      const [pickup, dropoff] = pair;
-      const pickupStr = pickup ? `[${pickup[0]}, ${pickup[1]}]` : "Not set";
-      const dropoffStr = dropoff ? `[${dropoff[0]}, ${dropoff[1]}]` : "Not set";
-      console.log(
-        `Passenger ${index}:\n  Pickup: ${pickupStr}\n  Dropoff: ${dropoffStr}`
-      );
-    });
-  };
+  //   console.log("=== Passengers Map ===");
+  //   passengersMap.forEach((pair, index) => {
+  //     const [pickup, dropoff] = pair;
+  //     const pickupStr = pickup ? `[${pickup[0]}, ${pickup[1]}]` : "Not set";
+  //     const dropoffStr = dropoff ? `[${dropoff[0]}, ${dropoff[1]}]` : "Not set";
+  //     console.log(
+  //       `Passenger ${index}:\n  Pickup: ${pickupStr}\n  Dropoff: ${dropoffStr}`
+  //     );
+  //   });
+  // };
 
   const navigate = useNavigate();
   const handleBack = () => {
@@ -99,6 +100,10 @@ export default function MainApp() {
       type: "FeatureCollection",
       features: [],
     });
+    map.getSource("route-points").setData({
+      type: "FeatureCollection",
+      features: [],
+    });
   };
   const addMarker = (lng, lat, color) => {
     const Marker = new mapboxgl.Marker({ color })
@@ -113,7 +118,8 @@ export default function MainApp() {
   }
 
   useEffect(() => {
-    logMaps();
+    // logMaps();
+
     mapboxgl.accessToken = MAPBOX_API_KEY;
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
@@ -138,6 +144,107 @@ export default function MainApp() {
       zoom: INITIAL_ZOOM,
     });
   };
+  async function getFinishedRoute(coordsList) {
+    const map = mapRef.current;
+    if (!map || !coordsList || coordsList.length < 2) return null;
+
+    console.log("Requesting route for coordinates:", coordsList);
+
+    // Format coordinates as 'lng,lat;lng,lat;...' string for Mapbox API
+    const coordString = coordsList
+      .map((coord) => `${coord[0]},${coord[1]}`)
+      .join(";");
+
+    const res = await fetch(
+      `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/` +
+        `${coordString}` +
+        `?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`
+    );
+    const json = await res.json();
+
+    if (!json.routes || json.routes.length === 0) {
+      console.error("No routes found");
+      return null;
+    }
+
+    const geom = json.routes[0].geometry;
+
+    const feature = {
+      type: "Feature",
+      properties: {},
+      geometry: geom,
+    };
+
+    // Initialize the route line source and layer if not present
+    if (!map.getSource("routes")) {
+      map.addSource("routes", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "routes-line",
+        type: "line",
+        source: "routes",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: { "line-color": "#d112db", "line-width": 5 },
+      });
+      routesRef.current = [];
+    }
+
+    routesRef.current.push(feature);
+    map.getSource("routes").setData({
+      type: "FeatureCollection",
+      features: routesRef.current,
+    });
+    coordsList.forEach((coord) => {
+      new mapboxgl.Marker({ color: "purple" }).setLngLat(coord).addTo(map);
+    });
+    // Create numbered point features for labels
+    const pointFeatures = coordsList.map((coord, index) => ({
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: coord,
+      },
+      properties: {
+        order: String(index + 1), // numbering labels as strings
+      },
+    }));
+
+    // Initialize or update the source and layer for the labels
+    if (!map.getSource("route-points")) {
+      map.addSource("route-points", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: pointFeatures,
+        },
+      });
+
+      map.addLayer({
+        id: "route-points-labels",
+        type: "symbol",
+        source: "route-points",
+        layout: {
+          "text-field": ["get", "order"],
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-size": 14,
+          "text-offset": [0, -3], // raise number above the point
+          "text-anchor": "bottom",
+        },
+        paint: {
+          "text-color": "#0000ff",
+        },
+      });
+    } else {
+      map.getSource("route-points").setData({
+        type: "FeatureCollection",
+        features: pointFeatures,
+      });
+    }
+
+    return feature;
+  }
 
   async function getRoute(start, end) {
     const map = mapRef.current;
@@ -228,25 +335,40 @@ export default function MainApp() {
       <button
         className="route-button"
         onClick={() => {
-          driversMap.forEach((driver) => {
+          drivers.forEach((driver) => {
             addMarker(driver[0], driver[1], "green");
           });
-          passengersMap.forEach(([source, dest]) => {
+          passengers.forEach(([source, dest]) => {
             addMarker(source[0], source[1], "blue");
             addMarker(dest[0], dest[1], "black");
             getRoute([source[0], source[1]], [dest[0], dest[1]]);
           });
         }}
       >
-        Draw Route/Time
+        Draw Initial Route
       </button>
-      <button className="reset-button" onClick={removeMarkers}>
+      <button
+        className="reset-button"
+        onClick={() => {
+          removeMarkers();
+          console.log(fetchData);
+        }}
+      >
         Reset
       </button>
       <button className="back-button" onClick={handleBack}>
         Back
       </button>
-      <SendData />
+      <SendData setFetchData={setFetchData} />
+      <button
+        className="create-button"
+        onClick={() => {
+          console.log(fetchData.path);
+          getFinishedRoute(fetchData.path);
+        }}
+      >
+        Create Route
+      </button>
       <div id="map-container" ref={mapContainerRef} />
     </>
   );

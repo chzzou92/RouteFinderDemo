@@ -45,7 +45,7 @@
   cursor: pointer;
 }
 .back-button {
-    position: absolute;
+  position: absolute;
   top: 170px;
   z-index: 1;
   left: 12px;
@@ -53,4 +53,12 @@
   border-radius: 10px;
   cursor: pointer;
 }
-
+.create-button {
+  position: absolute;
+  top: 210px;
+  z-index: 1;
+  left: 12px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}

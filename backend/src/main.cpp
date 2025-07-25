@@ -12,6 +12,8 @@
 #include "utils/Utils.hpp"
 #include "env.h"
 
+const std::string token = GOOGLE_API_KEY;
+
 struct Coord {
     double lat, lng;
     bool operator==(Coord const& o) const {
@@ -33,6 +35,12 @@ struct PairCoordHash {
         std::size_t h2 = ch(p.second);
         // Combine them (XOR + shift is a common simple mix)
         return h1 ^ (h2 << 1);
+    }
+};
+
+struct nodeHash {
+    std::size_t operator()(const std::pair<int, int>& p) const {
+        return std::hash<int>{}(p.first) ^ (std::hash<int>{}(p.second) << 1);
     }
 };
 
@@ -80,13 +88,13 @@ std::string httpPost(const std::string& url, const std::string& jsonBody) {
 
 
 //  getTime uses Google’s Routes API 
-int getTime(const Coord& start, const Coord& end, const std::string& apiKey) {
+int getTime(const Coord& start, const Coord& end) {
     // 1) Build the Distance Matrix GET URL
     std::ostringstream qs;
     qs << "https://maps.googleapis.com/maps/api/distancematrix/json"
         << "?destinations=" << end.lat << "%2C" << end.lng
        << "&origins=" << start.lat  << "%2C" << start.lng
-       << "&key=" << apiKey;
+       << "&key=" << GOOGLE_API_KEY;
 
     std::string url = qs.str();
 
@@ -136,35 +144,45 @@ int getTime(const Coord& start, const Coord& end, const std::string& apiKey) {
     int minutes = static_cast<int>(std::round(seconds / 60.0));
     return minutes;
 }
-// //returns minutes between start→end
-// int getTime(const Coord& start, const Coord& end, const std::string& token) {
-//     // printf("Start: (%.4f, %.4f)\n", start.lat, start.lng);
-//     // printf("End: (%.4f, %.4f)\n\n", end.lat, end.lng);
 
-//     // 1) build the Matrix API URL
-//     std::ostringstream qs;
-//     qs << "https://api.mapbox.com/directions-matrix/v1/"
-//        << "mapbox/driving-traffic/"
-//        << start.lat << "," << start.lng << ";" << end.lat << "," << end.lng
-//        << "?annotations=duration&access_token=" << token;
 
-//     // 2) fetch it
-//     std::string body = httpGet(qs.str());
+std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vector<std::vector<int>>& adj, std::unordered_map<int, int>& sourceToDest, std::unordered_map<int, int>& destToSource, std::unordered_set<int>& sourceSet, std::unordered_set<int>& destSet) {
+    using namespace std;
+    // time, node, visited set, and path 
+    using nodeType = tuple<int, int, unordered_set<int>, vector<int>>;
+    
+    auto cmp = [] (nodeType& a, nodeType& b) -> bool {
+        return get<0>(a) > get<0>(b); 
+    };
 
-//     // 3) parse JSON
-//     auto j = crow::json::load(body);
-//     if (!j) throw std::runtime_error("Invalid JSON from Matrix API");
+    priority_queue<nodeType, vector<nodeType>, decltype(cmp)> q(cmp);
+    unordered_map<pair<int, int>, int, nodeHash> storedTimes; 
 
-//     if (!j.has("durations")) {
-//         std::cout << j << "\n"; 
-//         throw std::runtime_error("JSON missing durations key. ");
-//     }
+    q.push({0, 0, unordered_set<int>(), vector<int>(1, 0)}); 
+    while (!q.empty()) {
+        auto [cTime, cNode, cSet, cPath] = q.top();
+        q.pop();
 
-//     // 4) extract seconds and convert to minutes
-//     double seconds = j["durations"][0][1].d();
-//     return static_cast<int>(std::round(seconds/60.0));
-// }
+        for (auto neighbor : adj[cNode]) {
+            if (cSet.count(neighbor)) continue; 
+            if (destSet.count(neighbor) && !cSet.count(destToSource[neighbor])) continue; 
+            if (!storedTimes.count({cNode, neighbor})) {
+                storedTimes[{cNode, neighbor}] = getTime(nodes[cNode], nodes[neighbor]);
+            }
+            int newTime = cTime; auto newSet = cSet; auto newPath = cPath; 
+            // Add time to neighbor onto current time
+            newTime += storedTimes[{cNode, neighbor}];
+            // Add neighbor to visited nodes + onto path 
+            newSet.insert(neighbor); newPath.push_back(neighbor);
+            // End BFS if all passengers have been dropped
+            if (newSet.size() >= adj.size()-1) return {newTime, newPath}; 
 
+            q.push({newTime, neighbor, newSet, newPath});
+        }
+    }
+
+    return {-1, {}};
+}
 
 int main()
 {
@@ -340,72 +358,8 @@ int main()
         std::cout << "\n";
     }
 
-    auto cmp =  [] (std::tuple<int, int, std::unordered_set<int>>& a, std::tuple<int, int, std::unordered_set<int>>& b) -> bool {
-        return std::get<0>(a) > std::get<0>(b); 
-    };
-    std::priority_queue<std::tuple<int,int,std::unordered_set<int>>, std::vector<std::tuple<int,int,std::unordered_set<int>>>, decltype(cmp)> pq; 
-    std::unordered_map<std::pair<Coord, Coord>, int, PairCoordHash> coordTime;
-    std::unordered_map<int, int> prev; 
-    static constexpr int INF = std::numeric_limits<int>::max();
-    std::vector<int> dist(N, INF);
-    const std::string token = GOOGLE_API_KEY;
-    
-    std::vector<int> path; int shortestTime = INF; 
 
-    int x = 0;
-    std::unordered_set<int> emptySet;
-    emptySet.insert(x); 
-    pq.push({0, x, emptySet});
-    while (!pq.empty()){
-        auto [currTime, u, set] = pq.top();
-        pq.pop();
-        int travelTime;
-
-        printf("Current node: %d\nCurrent Time: %d\n", u, currTime);
-        printf("Set size: %zu\n\n", set.size()); 
-
-        if (set.size() >= N) { // All passengers dropped
-            std::cout << set.size() << "\n"; 
-            int temp = u;
-            shortestTime = currTime; 
-            while (temp != x) {
-                path.push_back(temp);
-                temp = prev[temp]; 
-            }
-            break; 
-        }
-
-        for (int i : adj[u]){
-            // if it's dest: check if it's source is in the set
-            printf("Node #%d: \n", i, sourceSet.count(i));
-            if (destSet.count(i)) {
-                printf("Is destination: dest to source -> %d\n\n", destToSource[i]); 
-            }
-            if ((sourceSet.count(i)) || (destSet.count(i) && set.count(destToSource[i]))){
-
-                // std::cout << "Neighbor: " << i << "\n";
-
-                // Pull the time from currNode to the adjacent node
-                if (coordTime.find({nodes[u],nodes[i]})==coordTime.end()){
-                    travelTime = getTime(nodes[u], nodes[i],token);
-                    coordTime[{nodes[u],nodes[i]}] = travelTime;
-                } else {
-                    travelTime = coordTime[{nodes[u],nodes[i]}];
-                }
-
-                // std::cout << travelTime << "\n\n"; 
-
-                int newTime = currTime + travelTime; // Calculate total time taken
-                if (newTime < dist[i]){ // Only traverse this path if its faster or has not been found yet
-                    set.insert(i); 
-                    dist[i] = newTime;
-                    pq.push({newTime, i, set});
-                    prev[i] = u; // Update previous
-                }
-            }
-        }
-    }
-
+    auto [shortestTime, path] = findRoute(nodes, adj, sourceToDest, destToSource, sourceSet, destSet); 
 
     std::cout << "Shortest time: " << shortestTime << "\n";   
     std::cout << path.size() << "\n";   
@@ -423,14 +377,23 @@ int main()
 
         std::cout << "\n";
     }
-  
+
     //int minutes0 = getTime(src0, dst0, token);
     //std::cout << "First time: " << minutes0 << "\n";
-
-    crow::response res{200};
-    res.set_header("Content-Type", "application/json");
-    res.write(R"({"ok":true})");
+    crow::json::wvalue data;
+    data["success"] = true;
+    data["message"] = "Request handled properly";
+    data["shortestTime"] = shortestTime;
+    for (int i = 0; i < path.size(); i++) {
+        data["path"][i][0] = nodes[path[i]].lng;
+        data["path"][i][1] = nodes[path[i]].lat;
+    }
+    crow::response res(data);
+  //  res.set_header("Content-Type", "application/json");
     return res;
+    
+
+
     });
     //go to first node, add time to total time, calculate time from node's dest to next closest node, add to total time and repeat 
     // node map: (driver1, passenger1) -> time for that 
