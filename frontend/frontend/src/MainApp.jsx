@@ -19,49 +19,50 @@ export default function MainApp() {
   const routesRef = useRef([]);
   const markersRef = useRef([]);
   const [fetchData, setFetchData] = useState(null);
-  const drivers = [[-74.4927, 40.4174]];
-  const passengers = [
-    [
-      [-74.436765, 40.439562],
-      [-74.674849, 40.452963],
-    ],
-    [
-      [-74.43755, 40.525454],
-      [-74.31936, 40.563496],
-    ],
-    [
-      [-74.48454, 40.56596],
-      [-74.611447, 40.555897],
-    ],
-    // [
-    //   [-74.434529, 40.480098],
-    //   [-74.41297, 40.343104],
-    // ],
-    // [
-    //   [-74.44878, 40.482294],
-    //   [-74.570587, 40.340292],
-    // ],
-    // [
-    //   [-74.449443, 40.592058],
-    //   [-74.375534, 40.694155],
-    // ],
-    // [
-    //   [-74.452944, 40.484038],
-    //   [-74.267957, 40.461627],
-    // ],
-    // [
-    //   [-74.53506, 40.485142],
-    //   [-74.469859, 40.615775],
-    // ],
-    // [
-    //   [-74.37787, 40.47876],
-    //   [-74.29261, 40.570663],
-    // ],
-    // [
-    //   [-74.462616, 40.487974],
-    //   [-74.581453, 40.407822],
-    // ],
-  ];
+const drivers = [[40.4174, -74.4927]];
+const passengers = [
+  [
+    [40.439562, -74.436765],
+    [40.452963, -74.674849],
+  ],
+  [
+    [40.525454, -74.43755],
+    [40.563496, -74.31936],
+  ],
+  [
+    [40.56596, -74.48454],
+    [40.555897, -74.611447],
+  ],
+  [
+    [40.480098, -74.434529],
+    [40.343104, -74.41297],
+  ],
+  // [
+  //   [40.482294, -74.44878],
+  //   [40.340292, -74.570587],
+  // ],
+  // [
+  //   [40.592058, -74.449443],
+  //   [40.694155, -74.375534],
+  // ],
+  // [
+  //   [40.484038, -74.452944],
+  //   [40.461627, -74.267957],
+  // ],
+  // [
+  //   [40.485142, -74.53506],
+  //   [40.615775, -74.469859],
+  // ],
+  // [
+  //   [40.47876, -74.37787],
+  //   [40.570663, -74.29261],
+  // ],
+  // [
+  //   [40.487974, -74.462616],
+  //   [40.407822, -74.581453],
+  // ],
+];
+
   // const logMaps = () => {
   //   console.log("=== Drivers Map ===");
   //   driversMap.forEach((cords, index) => {
@@ -105,6 +106,7 @@ export default function MainApp() {
       features: [],
     });
   };
+  
   const addMarker = (lng, lat, color) => {
     const Marker = new mapboxgl.Marker({ color })
       .setLngLat([lng, lat])
@@ -144,6 +146,7 @@ export default function MainApp() {
       zoom: INITIAL_ZOOM,
     });
   };
+
   async function getFinishedRoute(coordsList) {
     const map = mapRef.current;
     if (!map || !coordsList || coordsList.length < 2) return null;
@@ -197,8 +200,10 @@ export default function MainApp() {
       features: routesRef.current,
     });
     coordsList.forEach((coord) => {
-      new mapboxgl.Marker({ color: "purple" }).setLngLat(coord).addTo(map);
+      const marker = new mapboxgl.Marker({ color: "purple" }).setLngLat(coord).addTo(map);
+       markersRef.current.push(marker); 
     });
+   
     // Create numbered point features for labels
     const pointFeatures = coordsList.map((coord, index) => ({
       type: "Feature",
@@ -336,12 +341,12 @@ export default function MainApp() {
         className="route-button"
         onClick={() => {
           drivers.forEach((driver) => {
-            addMarker(driver[0], driver[1], "green");
+            addMarker(driver[1], driver[0], "green");
           });
           passengers.forEach(([source, dest]) => {
-            addMarker(source[0], source[1], "blue");
-            addMarker(dest[0], dest[1], "black");
-            getRoute([source[0], source[1]], [dest[0], dest[1]]);
+            addMarker(source[1], source[0], "blue");
+            addMarker(dest[1], dest[0], "black");
+            getRoute([source[1], source[0]], [dest[1], dest[0]]);
           });
         }}
       >
@@ -359,7 +364,7 @@ export default function MainApp() {
       <button className="back-button" onClick={handleBack}>
         Back
       </button>
-      <SendData setFetchData={setFetchData} />
+      <SendData setFetchData={setFetchData} drivers={drivers} passengers={passengers} />
       <button
         className="create-button"
         onClick={() => {
