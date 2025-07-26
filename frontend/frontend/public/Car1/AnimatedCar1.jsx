@@ -1,7 +1,7 @@
 // AnimatedCar1.jsx
 import React, { useEffect } from "react";
 import { animated, useSpring, config } from "@react-spring/three";
-import Car1 from "./Car1"; // adjust path if needed
+import Car1 from "./Car1"; 
 
 export default function AnimatedCar1(props) {
   const [spring, api] = useSpring(() => ({

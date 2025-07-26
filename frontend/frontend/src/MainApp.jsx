@@ -5,9 +5,11 @@ import SendData from "./Fetch";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./App.css";
 import { useNavigate } from "react-router-dom";
+import createThreeCarLayer from "./ThreeCarLayer";
+import createPassengerThreeLayer from "./createPassengerLayer";
 
 const INITIAL_CENTER = [-74.4981, 40.4974];
-const INITIAL_ZOOM = 10.65;
+const INITIAL_ZOOM = 12;
 
 export default function MainApp() {
   const { state } = useLocation();
@@ -19,49 +21,122 @@ export default function MainApp() {
   const routesRef = useRef([]);
   const markersRef = useRef([]);
   const [fetchData, setFetchData] = useState(null);
-const drivers = [[40.4174, -74.4927]];
-const passengers = [
-  [
-    [40.439562, -74.436765],
-    [40.452963, -74.674849],
-  ],
-  [
-    [40.525454, -74.43755],
-    [40.563496, -74.31936],
-  ],
-  [
-    [40.56596, -74.48454],
-    [40.555897, -74.611447],
-  ],
-  [
-    [40.480098, -74.434529],
-    [40.343104, -74.41297],
-  ],
-  // [
-  //   [40.482294, -74.44878],
-  //   [40.340292, -74.570587],
-  // ],
-  // [
-  //   [40.592058, -74.449443],
-  //   [40.694155, -74.375534],
-  // ],
-  // [
-  //   [40.484038, -74.452944],
-  //   [40.461627, -74.267957],
-  // ],
-  // [
-  //   [40.485142, -74.53506],
-  //   [40.615775, -74.469859],
-  // ],
-  // [
-  //   [40.47876, -74.37787],
-  //   [40.570663, -74.29261],
-  // ],
-  // [
-  //   [40.487974, -74.462616],
-  //   [40.407822, -74.581453],
-  // ],
-];
+
+  const passengerOrigin = [-74.436765, 40.439562];
+  const carOrigin = [-74.4927, 40.4174];
+  const modelAltitude = 2;
+  const modelRotate = [Math.PI / 2, 0, 0];
+  const boyOffset = { x: 0.000025, y: 0.00001, z: 0.0000004 };
+  const girlOffset = { x: 0.000028, y: -0.00001, z: 0.0000004 };
+  const manOffset = { x: 0.000005, y: 0.00001, z: 0.0000004 };
+  const oldManOffset = { x: -0.000019, y: 0.00001, z: 0.0000004 };
+  const oldWomanOffset = { x: -0.000018, y: -0.00001, z: 0.0000004 };
+  const WomanOffset = { x: 0.00001, y: -0.00001, z: 0.0000004 };
+  const models = [
+    { offset: boyOffset, path: "/People/Boy/boy.gltf" },
+    { offset: manOffset, path: "/People/Man/man.gltf" },
+    { offset: oldManOffset, path: "/People/OldMan/OldMan.gltf" },
+    { offset: girlOffset, path: "/People/Girl/girl.gltf" },
+    { offset: oldWomanOffset, path: "/People/OldWoman/OldWoman.gltf" },
+    { offset: WomanOffset, path: "/People/Woman/Woman.gltf" },
+  ];
+  function createModel(map, cords, offset, path) {
+    const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
+      cords,
+      modelAltitude
+    );
+
+    const modelTransform = {
+      translateX: modelAsMercatorCoordinate.x + (offset?.x ?? 0),
+      translateY: modelAsMercatorCoordinate.y - (offset?.y ?? 0),
+      translateZ: modelAsMercatorCoordinate.z - (offset?.z ?? 0),
+      rotateX: modelRotate[0],
+      rotateY: modelRotate[1],
+      rotateZ: modelRotate[2],
+      scale:
+        modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() *
+        Math.pow(1.17, 22.0 - zoom),
+    };
+
+    const newThreeLayer = createPassengerThreeLayer(map, modelTransform, path);
+    map.addLayer(newThreeLayer);
+  }
+
+  const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
+    carOrigin,
+    modelAltitude
+  );
+  const passengerModelAsMercatorCoordinate =
+    mapboxgl.MercatorCoordinate.fromLngLat(passengerOrigin, modelAltitude);
+
+  const passengerModelTransform = {
+    translateX: passengerModelAsMercatorCoordinate.x + 0.000025,
+    translateY: passengerModelAsMercatorCoordinate.y - 0.00001,
+    translateZ: passengerModelAsMercatorCoordinate.z - 0.0000004,
+    rotateX: modelRotate[0],
+    rotateY: modelRotate[1],
+    rotateZ: modelRotate[2],
+    scale:
+      passengerModelAsMercatorCoordinate.meterInMercatorCoordinateUnits() *
+      Math.pow(1.17, 22.0 - zoom),
+  };
+
+  const modelTransform = {
+    translateX: modelAsMercatorCoordinate.x,
+    translateY: modelAsMercatorCoordinate.y,
+    translateZ: modelAsMercatorCoordinate.z,
+    rotateX: modelRotate[0],
+    rotateY: modelRotate[1],
+    rotateZ: modelRotate[2],
+    scale:
+      modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() *
+      Math.pow(1.8, 22.0 - zoom),
+  };
+
+  //console.log(mapboxgl.MercatorCoordinate.fromLngLat(modelOrigin, 0));
+  const drivers = [[40.4174, -74.4927]];
+  const passengers = [
+    [
+      [40.439562, -74.436765],
+      [40.452963, -74.674849],
+    ],
+    [
+      [40.525454, -74.43755],
+      [40.563496, -74.31936],
+    ],
+    [
+      [40.56596, -74.48454],
+      [40.555897, -74.611447],
+    ],
+    [
+      [40.480098, -74.434529],
+      [40.343104, -74.41297],
+    ],
+    // [
+    //   [40.482294, -74.44878],
+    //   [40.340292, -74.570587],
+    // ],
+    // [
+    //   [40.592058, -74.449443],
+    //   [40.694155, -74.375534],
+    // ],
+    // [
+    //   [40.484038, -74.452944],
+    //   [40.461627, -74.267957],
+    // ],
+    // [
+    //   [40.485142, -74.53506],
+    //   [40.615775, -74.469859],
+    // ],
+    // [
+    //   [40.47876, -74.37787],
+    //   [40.570663, -74.29261],
+    // ],
+    // [
+    //   [40.487974, -74.462616],
+    //   [40.407822, -74.581453],
+    // ],
+  ];
 
   // const logMaps = () => {
   //   console.log("=== Drivers Map ===");
@@ -106,7 +181,7 @@ const passengers = [
       features: [],
     });
   };
-  
+
   const addMarker = (lng, lat, color) => {
     const Marker = new mapboxgl.Marker({ color })
       .setLngLat([lng, lat])
@@ -123,20 +198,32 @@ const passengers = [
     // logMaps();
 
     mapboxgl.accessToken = MAPBOX_API_KEY;
-    mapRef.current = new mapboxgl.Map({
+    const map = new mapboxgl.Map({
       container: mapContainerRef.current,
       center,
       zoom,
+      pitch: 60,
+      antialias: true,
     });
 
-    mapRef.current.on("move", () => {
+    map.on("move", () => {
       const mapCenter = mapRef.current.getCenter();
       setCenter([mapCenter.lng, mapCenter.lat]);
       setZoom(mapRef.current.getZoom());
+      modelTransform.scale =
+        modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() *
+        Math.pow(1.8, 22.0 - mapRef.current.getZoom());
+      map.triggerRepaint();
+    });
+    map.on("style.load", () => {
+      const driverThreeLayer = createThreeCarLayer(map, modelTransform);
+      map.addLayer(driverThreeLayer);
     });
 
+    mapRef.current = map;
+
     return () => {
-      mapRef.current.remove();
+      map.remove();
     };
   }, []);
 
@@ -200,10 +287,12 @@ const passengers = [
       features: routesRef.current,
     });
     coordsList.forEach((coord) => {
-      const marker = new mapboxgl.Marker({ color: "purple" }).setLngLat(coord).addTo(map);
-       markersRef.current.push(marker); 
+      const marker = new mapboxgl.Marker({ color: "purple" })
+        .setLngLat(coord)
+        .addTo(map);
+      markersRef.current.push(marker);
     });
-   
+
     // Create numbered point features for labels
     const pointFeatures = coordsList.map((coord, index) => ({
       type: "Feature",
@@ -343,8 +432,11 @@ const passengers = [
           drivers.forEach((driver) => {
             addMarker(driver[1], driver[0], "green");
           });
-          passengers.forEach(([source, dest]) => {
-            addMarker(source[1], source[0], "blue");
+          passengers.forEach(([source, dest], index) => {
+            const lngLat = [source[1], source[0]];
+            const model = models[index % models.length];
+            createModel(mapRef.current, lngLat, model.offset, model.path);
+           // addMarker(source[1], source[0], "blue");
             addMarker(dest[1], dest[0], "black");
             getRoute([source[1], source[0]], [dest[1], dest[0]]);
           });
@@ -364,7 +456,11 @@ const passengers = [
       <button className="back-button" onClick={handleBack}>
         Back
       </button>
-      <SendData setFetchData={setFetchData} drivers={drivers} passengers={passengers} />
+      <SendData
+        setFetchData={setFetchData}
+        drivers={drivers}
+        passengers={passengers}
+      />
       <button
         className="create-button"
         onClick={() => {

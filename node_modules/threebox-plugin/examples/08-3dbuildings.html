@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+<head>
+	<title>Threebox display buildings in 3D with auto tooltips</title>
+	<link href="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css" rel="stylesheet">
+	<script src="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js"></script>
+	<script src="../dist/threebox.js" type="text/javascript"></script>
+	<link href="../dist/threebox.css" rel="stylesheet" />
+	<script src="config.js"></script>
+</head>
+<body>
+	<div id='map' class='map'>
+	</div>
+	<script type="module">
+
+		if (!config) console.error("Config not set! Make a copy of 'config_template.js', add in your access token, and save the file as 'config.js'.");
+
+		mapboxgl.accessToken = config.accessToken;
+
+		//starting location for map
+		let popup;
+		let minZoom = 12;
+		let mapConfig = {
+			ALL: { center: [-73.985699, 40.750042, 0], zoom: 16.25, pitch: 45, bearing: 0 },
+			names: {
+				compositeSource: "composite",
+				compositeSourceLayer: "building",
+				compositeLayer: "3d-buildings"
+			}
+		}
+
+		var map = new mapboxgl.Map({
+			style: 'mapbox://styles/mapbox/outdoors-v11',
+			center: mapConfig.ALL.center,
+			zoom: mapConfig.ALL.zoom,
+			pitch: mapConfig.ALL.pitch,
+			bearing: mapConfig.ALL.bearing,
+			container: 'map',
+			antialias: true,
+			hash: true
+		});
+
+		// we can add Threebox to mapbox to add built-in mouseover/mouseout and click behaviors
+		window.tb = new Threebox(
+			map,
+			map.getCanvas().getContext('webgl'),
+			{
+				defaultLights: true,
+				enableSelectingFeatures: true, //change this to false to disable fill-extrusion features selection
+				enableTooltips: true // change this to false to disable default tooltips on fill-extrusion and 3D models
+			}
+		);
+
+		import { GUI } from 'https://threejs.org/examples/jsm/libs/lil-gui.module.min.js';
+		import Stats from 'https://threejs.org/examples/jsm/libs/stats.module.js';
+
+		let stats, gui;
+		function animate() {
+			requestAnimationFrame(animate);
+			stats.update();
+		}
+
+		let api = {
+			fov: Math.atan(3 / 4) * 180 / Math.PI
+		};
+
+		function init() {
+			// stats
+			stats = new Stats();
+			map.getContainer().appendChild(stats.dom);
+			animate();
+			// gui
+			gui = new GUI();
+			// going below 2.5 degrees will start to generate serious issues with polygons in fill-extrusions and 3D meshes
+			// going above 45 degrees will also produce clipping and performance issues
+			gui.add(api, 'fov', 2.5, 45.0).step(0.1).onChange(changeFOV);
+		}
+
+		function changeFOV() {
+			tb.fov = api.fov;
+		}
+
+		// The 'building' layer in the mapbox-streets vector source contains building-height
+		// data from OpenStreetMap.
+		map.on('style.load', function () {
+
+			init();
+
+			map.addLayer(createCompositeLayer());
+
+			//[jscastro] there is no need to add a layer if we are not adding 3D objects or models, we can subscribe to render to invoke update
+			map.on('render', function () {
+				tb.update();
+			})
+
+			//[jscastro] subscribe to selected/unselect extrusion feature event
+			map.on('SelectedFeatureChange', onSelectedFeatureChange);
+
+		});
+
+
+		function createCompositeLayer() {
+			let layer = {
+				'id': mapConfig.names.compositeLayer,
+				'source': mapConfig.names.compositeSource,
+				'source-layer': mapConfig.names.compositeSourceLayer,
+				'filter': ['==', 'extrude', 'true'],
+				'type': 'fill-extrusion',
+				'minzoom': minZoom,
+				'paint': {
+					'fill-extrusion-color':
+						[
+							'case',
+							['boolean', ['feature-state', 'select'], false],
+							"lightgreen",
+							['boolean', ['feature-state', 'hover'], false],
+							"lightblue",
+							'#aaa'
+						],
+
+					// use an 'interpolate' expression to add a smooth transition effect to the
+					// buildings as the user zooms in
+					'fill-extrusion-height': [
+						'interpolate',
+						['linear'],
+						['zoom'],
+						minZoom,
+						0,
+						minZoom + 0.05,
+						['get', 'height']
+					],
+					'fill-extrusion-base': [
+						'interpolate',
+						['linear'],
+						['zoom'],
+						minZoom,
+						0,
+						minZoom + 0.05,
+						['get', 'min_height']
+					],
+					'fill-extrusion-opacity': 0.9
+				}
+			};
+			return layer;
+		}
+
+		//[jscastro] handler for the feature selected UI... we will create a Mapbox popup to compare with Threebox popup
+		function onSelectedFeatureChange(e) {
+			let feature = e.detail;
+			if (feature && feature.state && feature.state.select) {
+
+				if (popup) popup.remove();
+
+				let center = [];
+				let coords = tb.getFeatureCenter(feature, null, 0);
+
+				center.push([coords[0], coords[1]]);
+
+				//TODO: this creates a Mapbox popup in the same coords the Threebox popup to see the difference
+				popup = new mapboxgl.Popup({ offset: 0 })
+					.setLngLat(center[0].slice())
+					.setHTML('<strong>' + (feature.id || feature.type) + '</strong >')
+					.addTo(map);
+
+				let geoJson = {
+					"geometry": feature.geometry,
+					"type": "Feature",
+					"properties": feature.properties
+				}
+				console.log(JSON.stringify(geoJson, null, 2))
+
+			}
+
+
+		}
+
+	</script>
+</body>
+</html>

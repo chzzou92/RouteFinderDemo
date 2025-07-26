@@ -1,0 +1,318 @@
+<!doctype html>
+<html>
+<head>
+	<title>Threebox Statue of Liberty and Eiffel Tower</title>
+	<link href="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css" rel="stylesheet">
+	<script src="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js"></script>
+	<script src="../dist/threebox.js" type="text/javascript"></script>
+	<link href="../dist/threebox.css" rel="stylesheet" />
+	<script src="plugins/jquery.min.js" type="text/javascript"></script>
+	<!-- Place your kit's code here -->
+	<script src="css/fontawesome.js"></script>
+	<link href="css/free.min.css" rel="stylesheet" />
+	<link href="css/free-v4-font-face-min.css" rel="stylesheet" />
+	<link href="css/free-v4-shims.min.css" rel="stylesheet" />
+	<style>
+		body, html {
+			width: 100%;
+			height: 100%;
+			margin: 0;
+		}
+
+		#map {
+			width: 100%;
+			height: 100%;
+		}
+
+		#time {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 80px;
+			margin-left: auto;
+			margin-right: auto;
+			min-width: 90%;
+		}
+
+		#hour {
+			background: rgba(0, 0, 0, 0.5);
+			color: #fff;
+			position: absolute;
+			left: 0px;
+			right: 0px;
+			bottom: 40px;
+			margin-left: auto;
+			margin-right: auto;
+			max-width: 30%;
+			padding: 5px 10px;
+			font-size: 18px;
+			line-height: 18px;
+			border-radius: 3px;
+			text-align: center;
+		}
+	</style>
+
+	<script src="config.js"></script>
+</head>
+<body>
+	<div id='map' class='map'>
+		<div class="mapboxgl-ctrl-top-left">
+			<div id="toolsControl" class="tools-i mapboxgl-ctrl mapboxgl-ctrl-group btn-group btn-group-toggle" style="margin-left:120px;" data-toggle="buttons">
+				<!--<button type="button" name="ALL" id="ALL" title="All" alt="All"><i class="fas fa-globe-americas"></i></button>-->
+				<button type="button" name="NYC" id="NYC" title="Statue of Liberty, NYC" alt="Statue of Liberty, NYC"><i style="width: 26px; height: 26px; background: url(./images/statue-of-liberty.png) no-repeat center center; background-size: contain; display: block;"></i></button>
+				<button type="button" name="PAR" id="PAR" title="Eiffel Tower, Paris" alt="Eiffel Tower, Paris"><i style="width: 26px; height: 26px; background: url(./images/eiffel-tower.png) no-repeat center center; background-size: contain; display: block;"></i></button>
+			</div>
+			<div style="width:150px;display: inline-block;background: rgba(0, 0, 0, 0.5);border-radius: 3px;color: white;">Icons made by <a href="" title="monkik">monkik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>
+		</div>
+	</div>
+	<div id="hour" class="mapboxgl-map"></div>
+	<input id='time' type='range' min="0" max="86400" />
+	<script type="module">
+		//This demo shows a satellite mapbox style the following features:
+		//- Built-in sunlight through 'realSunlight' that sets the scene and map lights based on 'setSunlight'
+		//- Built-in shadows through 'castShadow' and 'tb.setBuildingShadows'
+		//- Built-in raycasting and selection through 'enableSelectingObjects' <br />
+		//- Built-in Tooltips on for through 'enableTooltips' <br />
+
+		if (!config) console.error("Config not set! Make a copy of 'config_template.js', add in your access token, and save the file as 'config.js'.");
+
+		mapboxgl.accessToken = config.accessToken;
+
+		//starting location for map
+		let popup;
+		let minZoom = 12;
+		let seconds = 0;
+		let date = new Date();
+		let mapConfig = {
+			//			ALL: { center: [-100.021884, 39.609738, 0], zoom: 3.25, pitch: 12, bearing: 0, timezone: 'US/Central' },
+			NYC: {
+				origin: [-74.0445322, 40.689254, 45], center: [-74.044803, 40.690183, 0], zoom: 17.7, pitch: 76, bearing: -10, scale: { x: 153, y: 157.294, z: 155 }, timezone: 'America/New_York'
+			},
+			PAR: {
+				origin: [2.294514, 48.857475, 0], center: [2.294625, 48.861085, 0], zoom: 15.95, pitch: 76, bearing: 0, scale: { x: 5621.06, y: 6480.4, z: 5621.06 }, timezone: 'Europe/Paris'
+			},
+			names: {
+				customLayer: "custom-layer",
+				fillExtrusion: "composite-b",
+				fillExtrusionLayer: "building-b"
+			}
+		}
+		let point = mapConfig.NYC;
+		let p = document.querySelector("#hour");
+
+		let styles = {
+			day: 'satellite-v9',
+			night: 'dark-v10'
+		}
+		let selectedStyle = styles.day;
+
+		var map = new mapboxgl.Map({
+			style: 'mapbox://styles/mapbox/' + selectedStyle, //'mapbox://styles/mapbox/satellite-v9',
+			center: point.center,
+			zoom: point.zoom,
+			pitch: point.pitch,
+			bearing: point.bearing,
+			container: 'map',
+			antialias: true, hash: true
+		});
+
+		map.addControl(new mapboxgl.NavigationControl());
+		// Add geolocate control to the map.
+		map.addControl(
+			new mapboxgl.GeolocateControl({
+				positionOptions: {
+					enableHighAccuracy: true
+				},
+				trackUserLocation: true
+			})
+		);
+
+		// we can add Threebox to mapbox to add built-in mouseover/mouseout and click behaviors
+		window.tb = new Threebox(
+			map,
+			map.getCanvas().getContext('webgl'),
+			{
+				realSunlight: true,
+				sky: true,
+				enableSelectingObjects: true, //change this to false to disable 3D objects selection
+				enableTooltips: true, // change this to false to disable default tooltips on fill-extrusion and 3D models
+			}
+		);
+
+		var time = date.getHours() * 60 * 60 + date.getMinutes() * 60 + date.getSeconds();
+		var timeInput = document.getElementById('time');
+		timeInput.value = time;
+		timeInput.oninput = () => {
+			time = +timeInput.value;
+			date.setHours(Math.floor(time / 60 / 60));
+			date.setMinutes(Math.floor(time / 60) % 60);
+			date.setSeconds(time % 60);
+			console.log(date);
+			map.triggerRepaint();
+		};
+
+		let stats;
+		import Stats from 'https://threejs.org/examples/jsm/libs/stats.module.js';
+		function animate() {
+			requestAnimationFrame(animate);
+			stats.update();
+		}
+
+		// The 'building' layer in the mapbox-streets vector source contains building-height
+		// data from OpenStreetMap.
+		map.on('style.load', function () {
+			// stats
+			stats = new Stats();
+			map.getContainer().appendChild(stats.dom);
+			animate();
+
+			let mapCenter = map.getCenter();
+			let center = [mapCenter.lng, mapCenter.lat];
+			p.innerHTML = "Local time: " + dateToTimezone(date, point.timezone).toLocaleTimeString();
+
+			map.addSource(mapConfig.names.fillExtrusion, {
+				// GeoJSON Data source used in vector tiles, documented at
+				// https://gist.github.com/ryanbaumann/a7d970386ce59d11c16278b90dde094d
+				'type': 'geojson',
+				'generateId': true, // This ensures that all features have unique IDs and allow selecting them
+				'data': './geojson/statue-of-liberty.geojson'
+			});
+
+			map.addLayer(createExtrusionLayer());
+
+			map.addLayer({
+				id: mapConfig.names.customLayer,
+				type: 'custom',
+				renderingMode: '3d',
+				onAdd: function (map, mbxContext) {
+					// Creative Commons License attribution: Liberty statue model by https://sketchfab.com/hellolucy2
+					// from https://sketchfab.com/3d-models/ellis-island-3cd765a23c5c4c7087acd00624d30590
+					var options = {
+						obj: './models/landmarks/LibertyStatue.glb',
+						type: 'gltf',
+						scale: mapConfig.NYC.scale,
+						units: 'meters',
+						rotation: { x: 90, y: 0, z: 0 }, //default rotation
+						anchor: 'center'
+					}
+
+					tb.loadObj(options, function (model) {
+						model.setCoords(mapConfig.NYC.origin);
+						model.setRotation({ x: 0, y: 0, z: -147 });
+						model.addTooltip("Statue of Liberty", true);
+						model.castShadow = true;
+						tb.add(model);
+					})
+
+					// Creative Commons License attribution:  Eiffel Tower model by https://www.cgtrader.com/lefabshop
+					// https://www.cgtrader.com/items/108594/download-page
+					options = {
+						obj: './models/landmarks/eiffel.glb',
+						type: 'gltf',
+						scale: mapConfig.PAR.scale,
+						units: 'meters',
+						rotation: { x: 90, y: 0, z: 0 }, //default rotation
+					}
+
+					tb.loadObj(options, function (model) {
+						model.setCoords(mapConfig.PAR.origin);
+						model.setRotation({ x: 0, y: 0, z: 45.7 });
+						model.addTooltip("Eiffel Tower", true);
+						model.castShadow = true;
+						tb.add(model);
+					})
+
+				},
+
+				render: function (gl, matrix) {
+					tb.setSunlight(date, point.center);
+					hour.innerHTML = "Local date/time: " + dateToTimezone(date, point.timezone).toLocaleString();
+					tb.update();
+				}
+			});
+
+		});
+
+		function createExtrusionLayer() {
+			let layer = {
+				'id': mapConfig.names.fillExtrusionLayer,
+				'source': mapConfig.names.fillExtrusion,
+				'filter': ['==', 'extrude', 'true'],
+				'type': 'fill-extrusion',
+				'minzoom': minZoom,
+				'paint': {
+					'fill-extrusion-color':
+						[
+							'case',
+							['boolean', ['feature-state', 'select'], false],
+							"lightgreen",
+							['boolean', ['feature-state', 'hover'], false],
+							"lightblue",
+							'#C7B299'
+						],
+					// use an 'interpolate' expression to add a smooth transition effect to the
+					// buildings as the user zooms in
+					'fill-extrusion-height': [
+						'interpolate',
+						['linear'],
+						['zoom'],
+						minZoom,
+						0,
+						minZoom + 0.05,
+						['get', 'height']
+					],
+					'fill-extrusion-base': [
+						'interpolate',
+						['linear'],
+						['zoom'],
+						minZoom,
+						0,
+						minZoom + 0.05,
+						['get', 'min_height']
+					],
+					'fill-extrusion-opacity': 1
+				}
+			};
+			return layer;
+		}
+
+		function reset() {
+			date = new Date();
+			seconds = 0;
+		}
+
+		$('#NYC').on('click', function () {
+			reset();
+			point = mapConfig.NYC;
+			//we fly smoothly to the object selected
+			flyTo(point);
+		});
+		$('#PAR').on('click', function () {
+			reset();
+			point = mapConfig.PAR;
+			//we fly smoothly to the object selected
+			flyTo(point);
+		});
+
+		function flyTo(coords) {
+
+			//we fly smoothly to the object selected
+			map.flyTo({
+				center: coords.center,
+				zoom: coords.zoom,
+				pitch: coords.pitch,
+				bearing: coords.bearing
+			});
+
+		}
+
+		function dateToTimezone(date = new Date(), timezone) {
+			var tzTime = date.toLocaleString("en-US", { timeZone: timezone });
+			return new Date(tzTime);
+
+		}
+
+
+	</script>
+</body>
+</html>
