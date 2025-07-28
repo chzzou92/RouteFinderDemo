@@ -6,6 +6,7 @@
   },
   "dependencies": {
     "@react-three/fiber": "^9.2.0",
+    "styled-components": "^6.1.19",
     "three": "^0.178.0",
     "threebox-plugin": "^2.2.7"
   }

@@ -7,3 +7,12 @@
   border-radius: 10px;
   cursor: pointer;
 }
+.loading {
+  position: absolute;
+  top: 130px;
+  z-index: 1;
+  left: 12px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}

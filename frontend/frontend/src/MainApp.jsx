@@ -20,7 +20,7 @@ export default function MainApp() {
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const routesRef = useRef([]);
   const markersRef = useRef([]);
-  const [fetchData, setFetchData] = useState(null);
+  const [loadComplete, setLoadComplete] = useState(false);
 
   const passengerOrigin = [-74.436765, 40.439562];
   const carOrigin = [-74.4927, 40.4174];
@@ -57,7 +57,7 @@ export default function MainApp() {
       rotateZ: modelRotate[2],
       scale:
         modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() *
-        Math.pow(1.17, 22.0 - zoom),
+        Math.pow(1.2, 22.0 - zoom),
     };
 
     const newThreeLayer = createPassengerThreeLayer(map, modelTransform, path);
@@ -94,14 +94,14 @@ export default function MainApp() {
       [40.56596, -74.48454],
       [40.555897, -74.611447],
     ],
-    // [
-    //   [40.480098, -74.434529],
-    //   [40.343104, -74.41297],
-    // ],
-    // [
-    //   [40.482294, -74.44878],
-    //   [40.340292, -74.570587],
-    // ],
+    [
+      [40.480098, -74.434529],
+      [40.343104, -74.41297],
+    ],
+    [
+      [40.482294, -74.44878],
+      [40.340292, -74.570587],
+    ],
     // [
     //   [40.592058, -74.449443],
     //   [40.694155, -74.375534],
@@ -208,6 +208,7 @@ export default function MainApp() {
       );
       map.addLayer(driverThreeLayer);
       carAnimateRef.current = animateCar;
+      setLoadComplete(true);
     });
 
     mapRef.current = map;
@@ -216,6 +217,22 @@ export default function MainApp() {
       map.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (loadComplete) {
+      drivers.forEach((driver) => {
+        addMarker(driver[1], driver[0], "green");
+      });
+      passengers.forEach(([source, dest], index) => {
+        const lngLat = [source[1], source[0]];
+        const model = models[index % models.length];
+        createModel(mapRef.current, lngLat, model.offset, model.path);
+        getTime([source[1], source[0]], [dest[1], dest[0]]);
+        addMarker(dest[1], dest[0], "black");
+        getRoute([source[1], source[0]], [dest[1], dest[0]]);
+      });
+    }
+  }, [loadComplete]);
 
   useEffect(() => {
     if (
@@ -231,7 +248,7 @@ export default function MainApp() {
     }
   }, [finalDriverPath]);
 
-  const handleButtonClick = () => {
+  const resetMapPosition = () => {
     mapRef.current.flyTo({
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
@@ -434,7 +451,7 @@ export default function MainApp() {
         Longitude: {center[0].toFixed(4)} | Latitude: {center[1].toFixed(4)} |
         Zoom: {zoom.toFixed(2)}
       </div>
-      <button
+      {/* <button
         className="route-button"
         onClick={() => {
           drivers.forEach((driver) => {
@@ -451,12 +468,12 @@ export default function MainApp() {
         }}
       >
         Draw Initial Route
-      </button>
+      </button> */}
       <button
         className="reset-button"
         onClick={() => {
           removeMarkers();
-          console.log(fetchData);
+          resetMapPosition();
         }}
       >
         Reset
@@ -465,19 +482,10 @@ export default function MainApp() {
         Back
       </button>
       <SendData
-        setFetchData={setFetchData}
         drivers={drivers}
         passengers={passengers}
+        getFinishedRoute={getFinishedRoute}
       />
-      <button
-        className="create-button"
-        onClick={() => {
-          console.log(fetchData.path);
-          getFinishedRoute(fetchData.path);
-        }}
-      >
-        Create Route
-      </button>
       <div id="map-container" ref={mapContainerRef} />
     </>
   );
