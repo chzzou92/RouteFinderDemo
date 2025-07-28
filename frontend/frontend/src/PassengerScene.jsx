@@ -1,11 +1,10 @@
-// CanvasScene.jsx
 import React, { Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Environment, OrbitControls } from "@react-three/drei";
-import AnimatedCar1 from "../public/Car1/AnimatedCar1";
+import AnimatedPeople from "../public/People/Man/AnimatedPeople";
 import * as THREE from "three";
 import "./Car.css";
-const Car1Scene = React.memo(() => {
+const PassengerScene = React.memo(() => {
   return (
     <div className="car-canvas-wrapper">
       <Canvas>
@@ -19,13 +18,13 @@ const Car1Scene = React.memo(() => {
           maxPolarAngle={Math.PI / 2}
         />
         <Suspense fallback={null}>
-          <AnimatedCar1 />
+          <AnimatedPeople />
         </Suspense>
-         <primitive object={new THREE.AxesHelper(2)} />
-        <Environment preset="studio" />
+        <primitive object={new THREE.AxesHelper(2)} />
+        <Environment preset="city" />
       </Canvas>
     </div>
   );
 });
 
-export default Car1Scene;
+export default PassengerScene;

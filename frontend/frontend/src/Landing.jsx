@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Car1Scene from "./Car1Scene";
 import { pass } from "three/tsl";
-import Car2Scene from "./Car2Scene";
+import PassengerScene from "./PassengerScene";
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -58,8 +58,8 @@ export default function Landing() {
         <button onClick={handleClick}>Next</button>
       </div>
       <div className="flex flex-row items-center justify-center">
+        <PassengerScene />
         <Car1Scene />
-        <Car2Scene />
       </div>
       <div className="flex flex-row items-center justify-around">
         <div className="flex flex-col items-center justify-center space-y-4">

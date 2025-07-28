@@ -15,6 +15,7 @@ export default function Model(props) {
   const { nodes, materials, animations } = useGLTF('/Car1/car1.gltf')
   const { actions } = useAnimations(animations, group)
   return (
+    //change size using scale
     <group scale={[2,2,2]}ref={group} {...props} dispose={null}>
       <group name="Sketchfab_Scene">
         <group name="Sketchfab_model" rotation={[-Math.PI / 2, 0, 0]}>

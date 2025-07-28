@@ -40,10 +40,12 @@ export default function MapSearch(props) {
           mapInstance.current.setZoom(15);
         }
 
-        // console.log(place.Dg.location.lat);
-        // console.log(place.Dg.location.lng);
-        props.loc(placePrediction.Nq.Nh[2].Nh[0]);
-        props.cords([place.Dg.location.lng,place.Dg.location.lat]);
+      //  console.log(place.Dg.location.lat);
+      // console.log(place.Dg.location.lng);
+      //  console.log(placePrediction.Oq.Nh[2].Nh[0]);
+  
+        props.loc(placePrediction.Oq.Nh[2].Nh[0]);
+        props.cords([place.Dg.location.lng, place.Dg.location.lat]);
         markerRef.current.setPosition(place.location);
       });
 

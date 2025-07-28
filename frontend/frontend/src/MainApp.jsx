@@ -32,6 +32,8 @@ export default function MainApp() {
   const oldManOffset = { x: -0.000019, y: 0.00001, z: 0.0000004 };
   const oldWomanOffset = { x: -0.000018, y: -0.00001, z: 0.0000004 };
   const WomanOffset = { x: 0.00001, y: -0.00001, z: 0.0000004 };
+  const carAnimateRef = useRef(null);
+  const [finalDriverPath, setFinalDriverPath] = useState(null);
   const models = [
     { offset: boyOffset, path: "/People/Boy/boy.gltf" },
     { offset: manOffset, path: "/People/Man/man.gltf" },
@@ -66,21 +68,6 @@ export default function MainApp() {
     carOrigin,
     modelAltitude
   );
-  const passengerModelAsMercatorCoordinate =
-    mapboxgl.MercatorCoordinate.fromLngLat(passengerOrigin, modelAltitude);
-
-  const passengerModelTransform = {
-    translateX: passengerModelAsMercatorCoordinate.x + 0.000025,
-    translateY: passengerModelAsMercatorCoordinate.y - 0.00001,
-    translateZ: passengerModelAsMercatorCoordinate.z - 0.0000004,
-    rotateX: modelRotate[0],
-    rotateY: modelRotate[1],
-    rotateZ: modelRotate[2],
-    scale:
-      passengerModelAsMercatorCoordinate.meterInMercatorCoordinateUnits() *
-      Math.pow(1.17, 22.0 - zoom),
-  };
-
   const modelTransform = {
     translateX: modelAsMercatorCoordinate.x,
     translateY: modelAsMercatorCoordinate.y,
@@ -93,7 +80,6 @@ export default function MainApp() {
       Math.pow(1.8, 22.0 - zoom),
   };
 
-  //console.log(mapboxgl.MercatorCoordinate.fromLngLat(modelOrigin, 0));
   const drivers = [[40.4174, -74.4927]];
   const passengers = [
     [
@@ -108,10 +94,10 @@ export default function MainApp() {
       [40.56596, -74.48454],
       [40.555897, -74.611447],
     ],
-    [
-      [40.480098, -74.434529],
-      [40.343104, -74.41297],
-    ],
+    // [
+    //   [40.480098, -74.434529],
+    //   [40.343104, -74.41297],
+    // ],
     // [
     //   [40.482294, -74.44878],
     //   [40.340292, -74.570587],
@@ -216,8 +202,12 @@ export default function MainApp() {
       map.triggerRepaint();
     });
     map.on("style.load", () => {
-      const driverThreeLayer = createThreeCarLayer(map, modelTransform);
+      const { layer: driverThreeLayer, animateCar } = createThreeCarLayer(
+        map,
+        modelTransform
+      );
       map.addLayer(driverThreeLayer);
+      carAnimateRef.current = animateCar;
     });
 
     mapRef.current = map;
@@ -226,6 +216,21 @@ export default function MainApp() {
       map.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (
+      finalDriverPath &&
+      finalDriverPath.length > 0 &&
+      carAnimateRef.current
+    ) {
+      console.log(finalDriverPath);
+      const tempPath = [
+        [-74.4927, 40.4174],
+        [-74.436765, 40.439562],
+      ];
+      carAnimateRef.current(finalDriverPath);
+    }
+  }, [finalDriverPath]);
 
   const handleButtonClick = () => {
     mapRef.current.flyTo({
@@ -258,7 +263,8 @@ export default function MainApp() {
     }
 
     const geom = json.routes[0].geometry;
-
+    //set path for driver
+    setFinalDriverPath(geom.coordinates);
     const feature = {
       type: "Feature",
       properties: {},
@@ -436,7 +442,7 @@ export default function MainApp() {
             const lngLat = [source[1], source[0]];
             const model = models[index % models.length];
             createModel(mapRef.current, lngLat, model.offset, model.path);
-           // addMarker(source[1], source[0], "blue");
+            // addMarker(source[1], source[0], "blue");
             addMarker(dest[1], dest[0], "black");
             getRoute([source[1], source[0]], [dest[1], dest[0]]);
           });
