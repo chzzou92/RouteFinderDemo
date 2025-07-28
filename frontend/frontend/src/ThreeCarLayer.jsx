@@ -9,6 +9,10 @@ export default function createThreeCarLayer(map, modelTransform) {
   let car = null;
   let mercatorPath = [];
   let progress = 0;
+  let currentAngle = 0;
+  let distanceAlongPath = 0;
+  const speed = 0.000000002; // adjust for smoothness
+
   let pendingPath = null;
 
   const directionalLight1 = new THREE.DirectionalLight(0xffffff);
@@ -23,6 +27,8 @@ export default function createThreeCarLayer(map, modelTransform) {
   loader.load("/Car1/car1.gltf", (gltf) => {
     car = gltf.scene;
     scene.add(car);
+    const axesHelper = new THREE.AxesHelper(5);
+    car.add(axesHelper);
     if (pendingPath) {
       animateCar(pendingPath);
       pendingPath = null;
@@ -54,52 +60,60 @@ export default function createThreeCarLayer(map, modelTransform) {
     }
 
     mercatorPath = scaledPath;
+    console.log(totalDistance);
     progress = 0;
 
     startAnimationLoop();
   }
 
   function updateCarPosition() {
-    if (!car || mercatorPath.length < 2 || progress >= 1) return;
+    distanceAlongPath += speed;
 
-    const distanceTraveled = progress * totalDistance;
+    if (distanceAlongPath >= totalDistance) {
+      distanceAlongPath = totalDistance;
+      return;
+    }
 
-    // Find segment that contains this distance
-    // let i = 0;
-    // while (
-    //   i < cumulativeDistances.length - 1 &&
-    //   cumulativeDistances[i + 1] < distanceTraveled
-    // ) {
-    //   i++;
-    // }
+    let i = 0;
+    while (
+      i < cumulativeDistances.length - 1 &&
+      cumulativeDistances[i + 1] < distanceAlongPath
+    ) {
+      i++;
+    }
 
-    // const start = mercatorPath[i];
-    // const end = mercatorPath[i + 1];
-    // const segStartDist = cumulativeDistances[i];
-    // const segEndDist = cumulativeDistances[i + 1];
-    // const segAlpha =
-    //   (distanceTraveled - segStartDist) / (segEndDist - segStartDist);
-    // console.log("Position before: ", car.position);
-    // car.position.lerpVectors(start, end, segAlpha);
-    // console.log("Position after: ", car.position);
+    const start = mercatorPath[i];
+    const end = mercatorPath[i + 1];
+    const segmentStartDist = cumulativeDistances[i];
+    const segmentEndDist = cumulativeDistances[i + 1];
+    const segmentLength = segmentEndDist - segmentStartDist;
 
-    modelTransform.translateX = mercatorPath[progress].x;
-    modelTransform.translateY = mercatorPath[progress].x;
-    modelTransform.translateZ = mercatorPath[progress].z;
+    const localT = (distanceAlongPath - segmentStartDist) / segmentLength;
 
-    // Rotation
-    // const direction = new THREE.Vector3().subVectors(end, start).normalize();
-    // if (direction.length() > 0) {
-    //   car.lookAt(
-    //     car.position.x + direction.x,
-    //     car.position.y + direction.y,
-    //     car.position.z + direction.z
-    //   );
-    // }
+    // Lerp position
+    modelTransform.translateX = (1 - localT) * start.x + localT * end.x;
+    modelTransform.translateY = (1 - localT) * start.y + localT * end.y;
+    modelTransform.translateZ = (1 - localT) * start.z + localT * end.z;
 
-    // Adjust speed here
-    progress += 1;
+    // Calculate target angle for rotation (direction of current segment)
+    const directionX = end.x - start.x;
+    const directionY = end.y - start.y;
+    const targetAngle = Math.atan2(directionX, directionY);
+
+    // Calculate shortest angular difference to avoid big jumps
+    let deltaAngle = targetAngle - currentAngle;
+    if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+    if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+
+    // Smoothly update currentAngle toward targetAngle
+    const rotationSpeed = 0.001; // increase this to turn faster
+    currentAngle += deltaAngle * rotationSpeed;
+
+    modelTransform.rotateY = currentAngle;
+
+    requestAnimationFrame(updateCarPosition);
   }
+
   const renderer = new THREE.WebGLRenderer({
     canvas: map.getCanvas(),
     context: map.painter.context.gl,
@@ -109,8 +123,7 @@ export default function createThreeCarLayer(map, modelTransform) {
 
   function startAnimationLoop() {
     function loop() {
-        
-
+      modelTransform.translateX;
       requestAnimationFrame(loop);
     }
     loop();
@@ -151,7 +164,7 @@ export default function createThreeCarLayer(map, modelTransform) {
         .multiply(rotationX)
         .multiply(rotationY)
         .multiply(rotationZ);
-
+      updateCarPosition();
       camera.projectionMatrix = m.multiply(l);
       renderer.resetState();
       renderer.render(scene, camera);

@@ -20,7 +20,7 @@ const PassengerScene = React.memo(() => {
         <Suspense fallback={null}>
           <AnimatedPeople />
         </Suspense>
-        <primitive object={new THREE.AxesHelper(2)} />
+        {/* <primitive object={new THREE.AxesHelper(2)} /> */}
         <Environment preset="city" />
       </Canvas>
     </div>

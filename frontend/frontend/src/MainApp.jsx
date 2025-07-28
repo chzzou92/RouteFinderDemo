@@ -223,7 +223,6 @@ export default function MainApp() {
       finalDriverPath.length > 0 &&
       carAnimateRef.current
     ) {
-      console.log(finalDriverPath);
       const tempPath = [
         [-74.4927, 40.4174],
         [-74.436765, 40.439562],
@@ -263,6 +262,7 @@ export default function MainApp() {
     }
 
     const geom = json.routes[0].geometry;
+
     //set path for driver
     setFinalDriverPath(geom.coordinates);
     const feature = {
@@ -272,32 +272,32 @@ export default function MainApp() {
     };
 
     // Initialize the route line source and layer if not present
-    if (!map.getSource("routes")) {
-      map.addSource("routes", {
+    if (!map.getSource("finished-route")) {
+      map.addSource("finished-route", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
       map.addLayer({
-        id: "routes-line",
+        id: "finished-route-line",
         type: "line",
-        source: "routes",
+        source: "finished-route",
         layout: { "line-join": "round", "line-cap": "round" },
-        paint: { "line-color": "#d112db", "line-width": 5 },
+        paint: { "line-color": "#ca8bcc", "line-width": 3 },
       });
       routesRef.current = [];
     }
 
     routesRef.current.push(feature);
-    map.getSource("routes").setData({
+    map.getSource("finished-route").setData({
       type: "FeatureCollection",
       features: routesRef.current,
     });
-    coordsList.forEach((coord) => {
-      const marker = new mapboxgl.Marker({ color: "purple" })
-        .setLngLat(coord)
-        .addTo(map);
-      markersRef.current.push(marker);
-    });
+    // coordsList.forEach((coord) => {
+    //   const marker = new mapboxgl.Marker({ color: "purple" })
+    //     .setLngLat(coord)
+    //     .addTo(map);
+    //   markersRef.current.push(marker);
+    // });
 
     // Create numbered point features for labels
     const pointFeatures = coordsList.map((coord, index) => ({
@@ -329,7 +329,7 @@ export default function MainApp() {
           "text-field": ["get", "order"],
           "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
           "text-size": 14,
-          "text-offset": [0, -3], // raise number above the point
+          "text-offset": [0, -2], // raise number above the point
           "text-anchor": "bottom",
         },
         paint: {
@@ -365,15 +365,15 @@ export default function MainApp() {
       geometry: geom,
     };
 
-    if (!map.getSource("routes")) {
-      map.addSource("routes", {
+    if (!map.getSource("passenger-route")) {
+      map.addSource("passenger-route", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
       map.addLayer({
-        id: "routes-line",
+        id: "passenger-route-line",
         type: "line",
-        source: "routes",
+        source: "passenger-route",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: { "line-color": "#3887be", "line-width": 4 },
       });
@@ -381,7 +381,7 @@ export default function MainApp() {
     }
 
     routesRef.current.push(feature);
-    map.getSource("routes").setData({
+    map.getSource("passenger-route").setData({
       type: "FeatureCollection",
       features: routesRef.current,
     });
@@ -404,7 +404,7 @@ export default function MainApp() {
     const minutes = Math.round(mat.durations[0][1] / 60);
     feature.properties.duration = minutes;
 
-    map.getSource("routes").setData({
+    map.getSource("passenger-route").setData({
       type: "FeatureCollection",
       features: routesRef.current,
     });
@@ -413,13 +413,15 @@ export default function MainApp() {
       map.addLayer({
         id: "routes-duration-label",
         type: "symbol",
-        source: "routes",
+        source: "passenger-route",
         layout: {
-          "symbol-placement": "line",
+          "symbol-placement": "point",
           "text-field": ["concat", ["to-string", ["get", "duration"]], " min"],
           "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-          "text-size": 12,
+          "text-size": 13,
           "text-offset": [0, 0.5],
+          "text-keep-upright": true,
+          "text-max-angle": 45,
         },
         paint: { "text-color": "#000" },
       });
@@ -442,7 +444,7 @@ export default function MainApp() {
             const lngLat = [source[1], source[0]];
             const model = models[index % models.length];
             createModel(mapRef.current, lngLat, model.offset, model.path);
-            // addMarker(source[1], source[0], "blue");
+            getTime([source[1], source[0]], [dest[1], dest[0]]);
             addMarker(dest[1], dest[0], "black");
             getRoute([source[1], source[0]], [dest[1], dest[0]]);
           });
