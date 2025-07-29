@@ -27,7 +27,6 @@ const CarGrid = ({
       updateLocation(selectedItem, selectedLocation);
 
       setLocationsFilled((prev) => {
-        console.log(prev);
         return prev + 0.5;
       });
 

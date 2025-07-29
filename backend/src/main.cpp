@@ -16,15 +16,17 @@ const std::string token = GOOGLE_API_KEY;
 
 struct Coord {
     double lat, lng;
+    enum class Role {Driver, PassengerSrc, PassengerDst} role;
     bool operator==(Coord const& o) const {
-        return lat == o.lat && lng == o.lng;
+        return lat == o.lat && lng == o.lng && role == o.role;
     }
 };
 struct CoordHash {
     std::size_t operator()(Coord const& c) const noexcept {
-        auto h1 = std::hash<long long>()(static_cast<long long>(c.lat * 1e6));
-        auto h2 = std::hash<long long>()(static_cast<long long>(c.lng * 1e6));
-        return h1 ^ (h2 << 1);
+        size_t h1 = std::hash<double>()(c.lat);
+        size_t h2 = std::hash<double>()(c.lng);
+        size_t h3 = std::hash<int>()(static_cast<int>(c.role));
+        return h1 ^ (h2 << 1) ^ (h3 << 2);
     }
 };
 struct PairCoordHash {
@@ -43,7 +45,15 @@ struct nodeHash {
         return std::hash<int>{}(p.first) ^ (std::hash<int>{}(p.second) << 1);
     }
 };
-
+//helper to print roles
+std::string roleToString(Coord::Role role) {
+    switch (role) {
+        case Coord::Role::Driver: return "Driver";
+        case Coord::Role::PassengerSrc: return "PassengerSrc";
+        case Coord::Role::PassengerDst: return "PassengerDst";
+        default: return "Unknown";
+    }
+}
 // A small helper to capture libcurl’s response into a std::string
 static size_t _curlWrite(void* buf, size_t size, size_t nmemb, void* up) {
     std::string* resp = static_cast<std::string*>(up);
@@ -242,7 +252,6 @@ int main()
         // each entry is itself a one element list of [lat,lng] pairs
         for (size_t i = 0; i < driList.size(); ++i) {
             auto& pairArr = driList[i];  // this is also an rvalue[List]
-
                 // pull out just one coord
                 std::pair<double,double> srcCoords = {pairArr[0].d(), pairArr[1].d()};
                 orderedDriList.push_back(srcCoords);
@@ -256,13 +265,19 @@ int main()
     //print out of orderedPaxList
     std::cout << "Print out of orderedPaxList: \n";
     for (int i = 0; i<orderedPaxList.size();i++){
-        std::cout << "[(" << orderedPaxList[i].first.first << ", " << orderedPaxList[i].first.second << "), " << "(" << orderedPaxList[i].second.first << ", " << orderedPaxList[i].second.second << ")]\n";
+        std::cout << "[(" << 
+        orderedPaxList[i].first.first << ", " << 
+        orderedPaxList[i].first.second << "), " << "(" << 
+        orderedPaxList[i].second.first << ", " << 
+        orderedPaxList[i].second.second << ")]\n";
     }
+
+    
     
     //consructing of adjacencylist 
     //1) insert drivers 
     for (auto const &drv : orderedDriList) {
-        Coord c{ drv.first, drv.second };
+        Coord c{ drv.first, drv.second, Coord::Role::Driver };
         if (indexOf.find(c) == indexOf.end()) {
             int idx = static_cast<int>(nodes.size());
             nodes.push_back(c);
@@ -273,7 +288,7 @@ int main()
     // insert passengers src
     for (auto const &pr : orderedPaxList) {
         auto const &srcPair = pr.first;
-        Coord c{ srcPair.first, srcPair.second };
+        Coord c{ srcPair.first, srcPair.second, Coord::Role::PassengerSrc };
         if (indexOf.find(c) == indexOf.end()) {
             int newIdx = static_cast<int>(nodes.size());
             nodes.push_back(c);
@@ -288,7 +303,7 @@ int main()
     //insert all passenger‐dst coordinates:
     for (auto const &pr : orderedPaxList) {
         auto const &dstPair = pr.second;
-        Coord c{ dstPair.first, dstPair.second };
+        Coord c{ dstPair.first, dstPair.second, Coord::Role::PassengerDst };
         if (indexOf.find(c) == indexOf.end()) {
             int newIdx = static_cast<int>(nodes.size());
             nodes.push_back(c);
@@ -304,8 +319,8 @@ int main()
     for (auto const &pr : orderedPaxList){
         auto const &srcPair = pr.first;
         auto const &dstPair = pr.second;
-        Coord src{ srcPair.first, srcPair.second };
-        Coord dest{ dstPair.first, dstPair.second };
+        Coord src{ srcPair.first, srcPair.second, Coord::Role::PassengerSrc };
+        Coord dest{ dstPair.first, dstPair.second, Coord::Role::PassengerDst };
         auto const srcIndex = indexOf[src];
         auto const dstIndex = indexOf[dest];
         sourceSet.insert(srcIndex);
@@ -349,7 +364,7 @@ int main()
     for (int i = 0; i < N; ++i) {
         const Coord &me = nodes[i];
         std::cout << "Node " << i << " (lat=" << me.lat
-                  << ", lng=" << me.lng << "):\n";
+                  << ", lng=" << me.lng << ", type=" << roleToString(me.role) << "):\n";
 
         // Are we in the driver block or passenger block?
         if (i < D) {
@@ -362,7 +377,7 @@ int main()
             const Coord &c = nodes[nb];
             std::cout << "    -> Node " << nb
                       << " at (lat=" << c.lat
-                      << ", lng=" << c.lng << ")\n";
+                      << ", lng=" << c.lng << ", type=" << roleToString(c.role) << ")\n";
         }
         std::cout << "\n";
     }
@@ -387,8 +402,7 @@ int main()
         std::cout << "\n";
     }
 
-    //int minutes0 = getTime(src0, dst0, token);
-    //std::cout << "First time: " << minutes0 << "\n";
+
     crow::json::wvalue data;
     data["success"] = true;
     data["message"] = "Request handled properly";

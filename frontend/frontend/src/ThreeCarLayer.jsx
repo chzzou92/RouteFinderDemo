@@ -6,6 +6,7 @@ export default function createThreeCarLayer(map, modelTransform) {
   console.log("createThreeCarLayer called:", modelTransform);
   const scene = new THREE.Scene();
   const camera = new THREE.Camera();
+  const carRef = {current: null};
   let car = null;
   let mercatorPath = [];
   let progress = 0;
@@ -26,6 +27,7 @@ export default function createThreeCarLayer(map, modelTransform) {
   const loader = new GLTFLoader();
   loader.load("/Car1/car1.gltf", (gltf) => {
     car = gltf.scene;
+    carRef.current = car;
     scene.add(car);
     if (pendingPath) {
       animateCar(pendingPath);
@@ -169,5 +171,5 @@ export default function createThreeCarLayer(map, modelTransform) {
       map.triggerRepaint();
     },
   };
-  return { layer, animateCar };
+  return { layer, animateCar, carModel: carRef };
 }

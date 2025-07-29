@@ -21,6 +21,7 @@ export default function MainApp() {
   const routesRef = useRef([]);
   const markersRef = useRef([]);
   const [loadComplete, setLoadComplete] = useState(false);
+  const carModelRef = useRef(null);
 
   const carOrigin = driversMap
     ? [driversMap[0][1], driversMap[0][0]]
@@ -81,8 +82,8 @@ export default function MainApp() {
       Math.pow(1.8, 22.0 - zoom),
   };
 
-  const drivers = [[40.4174, -74.4927]];
-  const passengers = [
+  const defaultDrivers = [[40.4174, -74.4927]];
+  const defaultPassengers = [
     [
       [40.439562, -74.436765],
       [40.452963, -74.674849],
@@ -156,21 +157,50 @@ export default function MainApp() {
     });
   };
 
-  const removeMarkers = () => {
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
-    const map = mapRef.current;
-    if (!map || !map.getSource("routes")) return;
-
+  const resetPaths = () => {
+    // markersRef.current.forEach((marker) => marker.remove());
+    // markersRef.current = [];
     routesRef.current = [];
 
-    map.getSource("routes").setData({
-      type: "FeatureCollection",
-      features: [],
-    });
-    map.getSource("route-points").setData({
-      type: "FeatureCollection",
-      features: [],
+    const map = mapRef.current;
+    if (!map) return;
+    //clears paths
+    const clearSource = (sourceId) => {
+      const source = map.getSource(sourceId);
+      if (source) {
+        source.setData({
+          type: "FeatureCollection",
+          features: [],
+        });
+      } else {
+        console.warn(`Source "${sourceId}" not found`);
+      }
+    };
+
+    clearSource("routes");
+    clearSource("route-points");
+    clearSource("finished-route");
+    clearSource("passsenger-route");
+  };
+
+  const resetCar = () => {
+    //resets car position to original position
+    const car = carModelRef.current?.current;
+    if (car && finalDriverPath?.length > 0) {
+      const merc = mapboxgl.MercatorCoordinate.fromLngLat(
+        { lng: carOrigin[0], lat: carOrigin[1] },
+        2
+      );
+      car.position.set(merc.x, merc.y, merc.z);
+      modelTransform.translateX = merc.x;
+      modelTransform.translateY = merc.y;
+      modelTransform.translateZ = merc.z;
+    }
+  };
+  const resetMapPosition = () => {
+    mapRef.current.flyTo({
+      center: INITIAL_CENTER,
+      zoom: INITIAL_ZOOM,
     });
   };
 
@@ -188,13 +218,10 @@ export default function MainApp() {
 
   useEffect(() => {
     // logMaps();
-    console.log(driversMap);
-    console.log(passengersMap);
 
     const initialCenter = driversMap
       ? [driversMap[0][1], driversMap[0][0]]
       : INITIAL_CENTER;
-    console.log(initialCenter);
     mapboxgl.accessToken = MAPBOX_API_KEY;
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
@@ -214,12 +241,14 @@ export default function MainApp() {
       map.triggerRepaint();
     });
     map.on("style.load", () => {
-      const { layer: driverThreeLayer, animateCar } = createThreeCarLayer(
-        map,
-        modelTransform
-      );
+      const {
+        layer: driverThreeLayer,
+        animateCar,
+        carModel,
+      } = createThreeCarLayer(map, modelTransform);
       map.addLayer(driverThreeLayer);
       carAnimateRef.current = animateCar;
+      carModelRef.current = carModel;
       setLoadComplete(true);
     });
 
@@ -232,11 +261,10 @@ export default function MainApp() {
 
   useEffect(() => {
     if (loadComplete) {
-      console.log(numDrivers);
       if (driversMap) {
         loadPassengers(driversMap, passengersMap);
       } else {
-        loadPassengers(drivers, passengers);
+        loadPassengers(defaultDrivers, defaultPassengers);
       }
     }
   }, [loadComplete]);
@@ -247,10 +275,6 @@ export default function MainApp() {
       finalDriverPath.length > 0 &&
       carAnimateRef.current
     ) {
-      const tempPath = [
-        [-74.4927, 40.4174],
-        [-74.436765, 40.439562],
-      ];
       carAnimateRef.current(finalDriverPath);
     }
   }, [finalDriverPath]);
@@ -266,12 +290,6 @@ export default function MainApp() {
       getTime([source[1], source[0]], [dest[1], dest[0]]);
       addMarker(dest[1], dest[0], "black");
       getRoute([source[1], source[0]], [dest[1], dest[0]]);
-    });
-  };
-  const resetMapPosition = () => {
-    mapRef.current.flyTo({
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
     });
   };
 
@@ -295,6 +313,7 @@ export default function MainApp() {
 
     if (!json.routes || json.routes.length === 0) {
       console.error("No routes found");
+
       return null;
     }
 
@@ -315,11 +334,38 @@ export default function MainApp() {
         data: { type: "FeatureCollection", features: [] },
       });
       map.addLayer({
-        id: "finished-route-line",
+        id: "finished-route-line-inner",
         type: "line",
         source: "finished-route",
         layout: { "line-join": "round", "line-cap": "round" },
-        paint: { "line-color": "#ca8bcc", "line-width": 3 },
+        paint: {
+          "line-color": "#d45bcc",
+          "line-width": 14,
+          "line-opacity": 0.2,
+        },
+      });
+      map.addLayer({
+        id: "gfinished-route-line-outer",
+        type: "line",
+        source: "finished-route",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#de87d8",
+          "line-width": 8,
+          "line-opacity": 0.5,
+        },
+      });
+
+      map.addLayer({
+        id: "finished-route-line-core",
+        type: "line",
+        source: "finished-route",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#d420c8",
+          "line-width": 4,
+          "line-opacity": 1,
+        },
       });
       routesRef.current = [];
     }
@@ -388,7 +434,6 @@ export default function MainApp() {
         `?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`
     );
     const json = await res.json();
-    console.log(json);
     const geom = json.routes[0].geometry;
 
     const feature = {
@@ -487,8 +532,9 @@ export default function MainApp() {
       <button
         className="reset-button"
         onClick={() => {
-          removeMarkers();
+          resetPaths();
           resetMapPosition();
+          resetCar();
         }}
       >
         Reset
@@ -497,8 +543,8 @@ export default function MainApp() {
         Back
       </button>
       <SendData
-        drivers={driversMap ? driversMap : drivers}
-        passengers={passengers ? passengersMap : passengers}
+        drivers={driversMap ? driversMap : defaultDrivers}
+        passengers={passengersMap ? passengersMap : defaultPassengers}
         getFinishedRoute={getFinishedRoute}
       />
       <div id="map-container" ref={mapContainerRef} />
