@@ -45,7 +45,7 @@ export default function MapSearch(props) {
       //  console.log(placePrediction.Oq.Nh[2].Nh[0]);
   
         props.loc(placePrediction.Oq.Nh[2].Nh[0]);
-        props.cords([place.Dg.location.lng, place.Dg.location.lat]);
+        props.cords([place.Dg.location.lat,place.Dg.location.lng]);
         markerRef.current.setPosition(place.location);
       });
 

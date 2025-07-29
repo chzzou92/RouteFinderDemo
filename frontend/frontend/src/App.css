@@ -37,7 +37,7 @@
 }
 .route-button {
   position: absolute;
-  top: 90px;
+  top: 130px;
   z-index: 1;
   left: 12px;
   padding: 4px 10px;
@@ -46,7 +46,7 @@
 }
 .back-button {
   position: absolute;
-  top: 170px;
+  top: 130px;
   z-index: 1;
   left: 12px;
   padding: 4px 10px;
@@ -55,7 +55,7 @@
 }
 .create-button {
   position: absolute;
-  top: 210px;
+  top: 90px;
   z-index: 1;
   left: 12px;
   padding: 4px 10px;

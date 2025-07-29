@@ -13,7 +13,7 @@ const INITIAL_ZOOM = 12;
 
 export default function MainApp() {
   const { state } = useLocation();
-  const { passengersMap, driversMap } = state || {};
+  const { passengersMap, driversMap, numDrivers, numPassengers } = state || {};
   const mapRef = useRef();
   const mapContainerRef = useRef();
   const [center, setCenter] = useState(INITIAL_CENTER);
@@ -22,8 +22,9 @@ export default function MainApp() {
   const markersRef = useRef([]);
   const [loadComplete, setLoadComplete] = useState(false);
 
-  const passengerOrigin = [-74.436765, 40.439562];
-  const carOrigin = [-74.4927, 40.4174];
+  const carOrigin = driversMap
+    ? [driversMap[0][1], driversMap[0][0]]
+    : [-74.4927, 40.4174];
   const modelAltitude = 2;
   const modelRotate = [Math.PI / 2, 0, 0];
   const boyOffset = { x: 0.000025, y: 0.00001, z: 0.0000004 };
@@ -147,7 +148,12 @@ export default function MainApp() {
 
   const navigate = useNavigate();
   const handleBack = () => {
-    navigate("/route");
+    navigate("/route", {
+      state: {
+        drivers: numDrivers,
+        passengers: numPassengers,
+      },
+    });
   };
 
   const removeMarkers = () => {
@@ -182,11 +188,17 @@ export default function MainApp() {
 
   useEffect(() => {
     // logMaps();
+    console.log(driversMap);
+    console.log(passengersMap);
 
+    const initialCenter = driversMap
+      ? [driversMap[0][1], driversMap[0][0]]
+      : INITIAL_CENTER;
+    console.log(initialCenter);
     mapboxgl.accessToken = MAPBOX_API_KEY;
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      center,
+      center: initialCenter,
       zoom,
       pitch: 60,
       antialias: true,
@@ -220,17 +232,12 @@ export default function MainApp() {
 
   useEffect(() => {
     if (loadComplete) {
-      drivers.forEach((driver) => {
-        addMarker(driver[1], driver[0], "green");
-      });
-      passengers.forEach(([source, dest], index) => {
-        const lngLat = [source[1], source[0]];
-        const model = models[index % models.length];
-        createModel(mapRef.current, lngLat, model.offset, model.path);
-        getTime([source[1], source[0]], [dest[1], dest[0]]);
-        addMarker(dest[1], dest[0], "black");
-        getRoute([source[1], source[0]], [dest[1], dest[0]]);
-      });
+      console.log(numDrivers);
+      if (driversMap) {
+        loadPassengers(driversMap, passengersMap);
+      } else {
+        loadPassengers(drivers, passengers);
+      }
     }
   }, [loadComplete]);
 
@@ -248,6 +255,19 @@ export default function MainApp() {
     }
   }, [finalDriverPath]);
 
+  const loadPassengers = (d, p) => {
+    d.forEach((driver) => {
+      addMarker(driver[1], driver[0], "green");
+    });
+    p.forEach(([source, dest], index) => {
+      const lngLat = [source[1], source[0]];
+      const model = models[index % models.length];
+      createModel(mapRef.current, lngLat, model.offset, model.path);
+      getTime([source[1], source[0]], [dest[1], dest[0]]);
+      addMarker(dest[1], dest[0], "black");
+      getRoute([source[1], source[0]], [dest[1], dest[0]]);
+    });
+  };
   const resetMapPosition = () => {
     mapRef.current.flyTo({
       center: INITIAL_CENTER,
@@ -309,12 +329,6 @@ export default function MainApp() {
       type: "FeatureCollection",
       features: routesRef.current,
     });
-    // coordsList.forEach((coord) => {
-    //   const marker = new mapboxgl.Marker({ color: "purple" })
-    //     .setLngLat(coord)
-    //     .addTo(map);
-    //   markersRef.current.push(marker);
-    // });
 
     // Create numbered point features for labels
     const pointFeatures = coordsList.map((coord, index) => ({
@@ -374,6 +388,7 @@ export default function MainApp() {
         `?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`
     );
     const json = await res.json();
+    console.log(json);
     const geom = json.routes[0].geometry;
 
     const feature = {
@@ -482,8 +497,8 @@ export default function MainApp() {
         Back
       </button>
       <SendData
-        drivers={drivers}
-        passengers={passengers}
+        drivers={driversMap ? driversMap : drivers}
+        passengers={passengers ? passengersMap : passengers}
         getFinishedRoute={getFinishedRoute}
       />
       <div id="map-container" ref={mapContainerRef} />

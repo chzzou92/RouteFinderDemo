@@ -6,6 +6,7 @@ import "./Fetch.css";
 function SendData({ setFetchData, drivers, passengers, getFinishedRoute }) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(false);
   const [fastestTime, setFastestTime] = useState(null);
 
   const handleSubmit = async (e) => {
@@ -20,19 +21,26 @@ function SendData({ setFetchData, drivers, passengers, getFinishedRoute }) {
     };
     try {
       setSuccess(false);
+      setError(false);
       const res = await fetch("http://0.0.0.0:8000/get-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
       const data = await res.json();
+
+      if (!res.ok || data.shortestTime === -1 || data.path.length === 0) {
+        setError(true);
+        throw new Error(`Submit failed: ${res.status}`);
+      }
 
       console.log("Success", data);
       setFastestTime(data.shortestTime);
       getFinishedRoute(data.path);
-      if (!res.ok) {
-        throw new Error("Submit failed", res.status);
-      }
+    } catch (err) {
+      console.error("Caught fetch error:", err);
+      setError(true);
     } finally {
       setLoading(false);
       setSuccess(true);
@@ -45,7 +53,8 @@ function SendData({ setFetchData, drivers, passengers, getFinishedRoute }) {
         Get Route
       </button>
       {loading && <Loader />}
-      {success && <TimeButton time={fastestTime}/>}
+      {success && <TimeButton time={fastestTime} />}
+      {error && <TimeButton time={-1} />}
     </>
   );
 }

@@ -25,10 +25,13 @@ const CarGrid = ({
       selectedLocation != lastAssignedLocationRef.current
     ) {
       updateLocation(selectedItem, selectedLocation);
-      lastAssignedLocationRef.current = selectedLocation;
+
       setLocationsFilled((prev) => {
+        console.log(prev);
         return prev + 0.5;
       });
+
+      lastAssignedLocationRef.current = selectedLocation;
     }
   }, [selectedItem, selectedLocation]);
 

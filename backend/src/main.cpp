@@ -106,7 +106,6 @@ int getTime(const Coord& start, const Coord& end) {
     if (!j) {
         throw std::runtime_error("Invalid JSON from Google Distance Matrix.");
     }
-
     // 4) Check top‐level status
     if (!j.has("status") || j["status"].s() != "OK") {
         std::ostringstream err;
@@ -149,7 +148,7 @@ int getTime(const Coord& start, const Coord& end) {
 std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vector<std::vector<int>>& adj, std::unordered_map<int, int>& sourceToDest, std::unordered_map<int, int>& destToSource, std::unordered_set<int>& sourceSet, std::unordered_set<int>& destSet) {
     using namespace std;
     // time, node, visited set, and path 
-    using nodeType = tuple<int, int, unordered_set<int>, vector<int>>;
+    using nodeType = tuple<int, int, unordered_set<int>, vector<int>, int>;
     
     auto cmp = [] (nodeType& a, nodeType& b) -> bool {
         return get<0>(a) > get<0>(b); 
@@ -158,16 +157,23 @@ std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vecto
     priority_queue<nodeType, vector<nodeType>, decltype(cmp)> q(cmp);
     unordered_map<pair<int, int>, int, nodeHash> storedTimes; 
 
-    q.push({0, 0, unordered_set<int>(), vector<int>(1, 0)}); 
+    q.push({0, 0, unordered_set<int>(), vector<int>(1, 0), 0}); 
     while (!q.empty()) {
-        auto [cTime, cNode, cSet, cPath] = q.top();
+        auto [cTime, cNode, cSet, cPath, cInCar] = q.top();
         q.pop();
 
         for (auto neighbor : adj[cNode]) {
+            if (sourceSet.count(neighbor) && cInCar == 4) continue;
             if (cSet.count(neighbor)) continue; 
             if (destSet.count(neighbor) && !cSet.count(destToSource[neighbor])) continue; 
             if (!storedTimes.count({cNode, neighbor})) {
                 storedTimes[{cNode, neighbor}] = getTime(nodes[cNode], nodes[neighbor]);
+            }
+
+            if (destSet.count(neighbor)){
+                cInCar -= 1;
+            } else{
+                cInCar += 1;
             }
             int newTime = cTime; auto newSet = cSet; auto newPath = cPath; 
             // Add time to neighbor onto current time
@@ -177,10 +183,12 @@ std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vecto
             // End BFS if all passengers have been dropped
             if (newSet.size() >= adj.size()-1) return {newTime, newPath}; 
 
-            q.push({newTime, neighbor, newSet, newPath});
+            q.push({newTime, neighbor, newSet, newPath, cInCar});
         }
     }
-
+    for (const auto& pair: storedTimes){
+        std::cout << "(" << pair.first.first << ", " << pair.first.second << ") => " << pair.second << "\n";
+    }
     return {-1, {}};
 }
 
@@ -250,6 +258,7 @@ int main()
     for (int i = 0; i<orderedPaxList.size();i++){
         std::cout << "[(" << orderedPaxList[i].first.first << ", " << orderedPaxList[i].first.second << "), " << "(" << orderedPaxList[i].second.first << ", " << orderedPaxList[i].second.second << ")]\n";
     }
+    
     //consructing of adjacencylist 
     //1) insert drivers 
     for (auto const &drv : orderedDriList) {
@@ -395,24 +404,6 @@ int main()
 
 
     });
-    //go to first node, add time to total time, calculate time from node's dest to next closest node, add to total time and repeat 
-    // node map: (driver1, passenger1) -> time for that 
-    // take driver go through all the paxNodes with dest, call getTime and store the result in map
-    // then loop throug passenger paxNodes, taking the time from map adding it to total time, updating driver position to node's destination, and continue looping 
-    //queue [node1, node2, ...]
-    //visit first node, take it out of queue, update position to be at paxNodes dest, 
-    // pq queue, of (total_time, node), minheap
-    // pq.push({0, startigPos})
-    // bestCostMap 
-    // droppedPassengers
-    // prevMap
-    // while (!pq.empty()) 
-    // pop -> curr
-    // Has all passangers been dropped off -> break and store current path
-    // push all adjacent, you push {curr.first + getTime(curr, adj)/ m[{curr, adj}], adj }
-    // mark as visited, mark prev
-    // reutrn path 
-
     app.port(PORT).multithreaded().run();
 
     return 0;

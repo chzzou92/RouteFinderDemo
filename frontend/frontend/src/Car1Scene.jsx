@@ -21,7 +21,6 @@ const Car1Scene = React.memo(() => {
         <Suspense fallback={null}>
           <AnimatedCar1 />
         </Suspense>
-         <primitive object={new THREE.AxesHelper(2)} />
         <Environment preset="studio" />
       </Canvas>
     </div>

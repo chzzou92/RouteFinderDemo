@@ -27,8 +27,6 @@ export default function createThreeCarLayer(map, modelTransform) {
   loader.load("/Car1/car1.gltf", (gltf) => {
     car = gltf.scene;
     scene.add(car);
-    const axesHelper = new THREE.AxesHelper(5);
-    car.add(axesHelper);
     if (pendingPath) {
       animateCar(pendingPath);
       pendingPath = null;

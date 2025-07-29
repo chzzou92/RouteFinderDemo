@@ -15,6 +15,13 @@ export default function Landing() {
       state: { passengers, drivers },
     });
   };
+  const handleSkip = () => {
+    setPassengers(-1);
+    setDrivers(-1);
+    navigate("/app", {
+      state: { passengers, drivers },
+    });
+  };
   const addPassengers = () => {
     if (passengers < 10) {
       setPassengers(passengers + 1);
@@ -55,7 +62,7 @@ export default function Landing() {
           To Use the App, first select the amount of Passengers and Drivers you
           would like!
         </h3>
-        <button onClick={handleClick}>Next</button>
+        <button onClick={handleSkip}>Default Route</button>
       </div>
       <div className="flex flex-row items-center justify-center">
         <PassengerScene />
@@ -100,6 +107,9 @@ export default function Landing() {
             </div>
           )}
         </div>
+      </div>
+      <div className="flex flex-row items-center justify-center p-4">
+        <button onClick={handleClick}>Next</button>
       </div>
     </div>
   );

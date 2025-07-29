@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 export default function GetRoute() {
   const { state } = useLocation();
   const { drivers, passengers } = state || {};
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setSelectedItem] = useState("Passenger-0-pickup");
   const navigate = useNavigate();
   const [location, getLocation] = useState(null);
   const [locationsFilled, setLocationsFilled] = useState(0);
@@ -33,28 +33,26 @@ export default function GetRoute() {
     if (type === "Driver") {
       driversMapRef.current[index] = cords;
     }
-    const logMaps = () => {
-      console.log("=== Drivers Map ===");
-      driversMapRef.current.forEach((cords, index) => {
-        if (cords) {
-          console.log(`Driver ${index}: [${cords[0]}, ${cords[1]}]`);
-        } else {
-          console.log(`Driver ${index}: Not set`);
-        }
-      });
+  };
+  const logMaps = () => {
+    console.log("=== Drivers Map ===");
+    driversMapRef.current.forEach((cords, index) => {
+      if (cords) {
+        console.log(`Driver ${index}: [${cords[0]}, ${cords[1]}]`);
+      } else {
+        console.log(`Driver ${index}: Not set`);
+      }
+    });
 
-      console.log("=== Passengers Map ===");
-      passengersMapRef.current.forEach((pair, index) => {
-        const [pickup, dropoff] = pair;
-        const pickupStr = pickup ? `[${pickup[0]}, ${pickup[1]}]` : "Not set";
-        const dropoffStr = dropoff
-          ? `[${dropoff[0]}, ${dropoff[1]}]`
-          : "Not set";
-        console.log(
-          `Passenger ${index}:\n  Pickup: ${pickupStr}\n  Dropoff: ${dropoffStr}`
-        );
-      });
-    };
+    console.log("=== Passengers Map ===");
+    passengersMapRef.current.forEach((pair, index) => {
+      const [pickup, dropoff] = pair;
+      const pickupStr = pickup ? `[${pickup[0]}, ${pickup[1]}]` : "Not set";
+      const dropoffStr = dropoff ? `[${dropoff[0]}, ${dropoff[1]}]` : "Not set";
+      console.log(
+        `Passenger ${index}:\n  Pickup: ${pickupStr}\n  Dropoff: ${dropoffStr}`
+      );
+    });
   };
   useEffect(() => {
     if (typeof selectedItem === "string" && Array.isArray(selectedCords)) {
@@ -62,18 +60,27 @@ export default function GetRoute() {
     }
   }, [selectedCords]);
 
+  useEffect(() => {
+    logMaps();
+  });
+
   const handleBack = () => {
     navigate("/");
   };
   const handleNext = () => {
-    if (locationsFilled === capacity) {
+    if (locationsFilled >= capacity) {
       navigate("/app", {
         state: {
           passengersMap: passengersMapRef.current,
           driversMap: driversMapRef.current,
+          numDrivers: drivers,
+          numPassengers: passengers,
         },
       });
     } else {
+      console.log(capacity);
+      console.log(locationsFilled);
+      logMaps();
       setLocationsError(true);
     }
   };

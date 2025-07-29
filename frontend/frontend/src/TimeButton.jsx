@@ -7,7 +7,7 @@ const TimeButton = (props) => {
   const label = `${hours > 0 ? `${hours}H ` : ""}${minutes}M`;
   return (
     <StyledWrapper>
-      <button>{label}</button>
+      <button>{props.time != -1 ? label : "Error!"}</button>
     </StyledWrapper>
   );
 };
