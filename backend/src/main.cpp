@@ -45,6 +45,38 @@ struct nodeHash {
         return std::hash<int>{}(p.first) ^ (std::hash<int>{}(p.second) << 1);
     }
 };
+
+struct PathHash {
+    std::size_t operator()(const std::pair<int, std::vector<int>>& p) const {
+        std::size_t seed = std::hash<int>{}(p.first);
+        for (int v : p.second) {
+            seed ^= std::hash<int>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        }
+        return seed;
+    }
+};
+
+struct PathEqual {
+    bool operator()(const std::pair<int, std::vector<int>>& a,
+                    const std::pair<int, std::vector<int>>& b) const {
+        return a.first == b.first && a.second == b.second;
+    }
+};
+
+
+struct RoutingContext{
+    std::unordered_map<std::pair<int, int>, int, nodeHash> storedTimes; 
+    int numOfDrivers;
+    int numOfPassengerSources;
+    int numOfPassengerDest;
+    std::vector<std::vector<int>> adjacencyList;
+    std::unordered_map<int, int> sourceToDest;
+    std::unordered_map<int, int> destToSource;
+    std::unordered_set<int> sourceSet;
+    std::unordered_set<int> destSet;
+    std::vector<Coord> nodes;
+
+};
 //helper to print roles
 std::string roleToString(Coord::Role role) {
     switch (role) {
@@ -155,7 +187,7 @@ int getTime(const Coord& start, const Coord& end) {
 }
 
 
-std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vector<std::vector<int>>& adj, std::unordered_map<int, int>& sourceToDest, std::unordered_map<int, int>& destToSource, std::unordered_set<int>& sourceSet, std::unordered_set<int>& destSet) {
+std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vector<std::vector<int>>& adj, std::unordered_map<int, int>& sourceToDest, std::unordered_map<int, int>& destToSource, std::unordered_set<int>& sourceSet, std::unordered_set<int>& destSet, int maxNodes, int driverIdx) {
     using namespace std;
     // time, node, visited set, and path 
     using nodeType = tuple<int, int, unordered_set<int>, vector<int>, int>;
@@ -167,7 +199,7 @@ std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vecto
     priority_queue<nodeType, vector<nodeType>, decltype(cmp)> q(cmp);
     unordered_map<pair<int, int>, int, nodeHash> storedTimes; 
 
-    q.push({0, 0, unordered_set<int>(), vector<int>(1, 0), 0}); 
+    q.push({0, driverIdx, unordered_set<int>(), vector<int>(1, driverIdx), 0}); 
     while (!q.empty()) {
         auto [cTime, cNode, cSet, cPath, cInCar] = q.top();
         q.pop();
@@ -191,7 +223,7 @@ std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vecto
             // Add neighbor to visited nodes + onto path 
             newSet.insert(neighbor); newPath.push_back(neighbor);
             // End BFS if all passengers have been dropped
-            if (newSet.size() >= adj.size()-1) return {newTime, newPath}; 
+            if (newSet.size() >= maxNodes) return {newTime, newPath}; 
 
             q.push({newTime, neighbor, newSet, newPath, cInCar});
         }
@@ -201,6 +233,82 @@ std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vecto
     }
     return {-1, {}};
 }
+
+std::unordered_map<int, std::vector<int>> decipherRoutes(RoutingContext& ctx ){
+    std::cout << "[INFO] Entered decipherRoutes()\n";
+    if (ctx.numOfDrivers == 1){
+        return {};
+    }
+    //storedTimes Driver -> source
+    for (int i = 0; i < ctx.numOfDrivers; i++){
+        for (int source : ctx.sourceSet){
+            if (!ctx.storedTimes.count({i, source})){
+                ctx.storedTimes[{i, source}] = getTime(ctx.nodes[i], ctx.nodes[source]);
+            }
+        }
+    }
+    //storedTimes source -> dest
+    for (int source : ctx.sourceSet){
+        for (int dest : ctx.destSet){
+            if (!ctx.storedTimes.count({source, dest})){
+                ctx.storedTimes[{source, dest}] = getTime(ctx.nodes[source], ctx.nodes[dest]);
+            }
+        }
+    }
+
+    std::cout << "Stored Times (from -> to : time):\n";
+    for (const auto& [key, value] : ctx.storedTimes) {
+        std::cout << "(" << key.first << " -> " << key.second << ") : " << value << "\n";
+    }
+    std::cout << "--------------------------------\n";
+
+    //create Costmap, from passenger -> array of costs to take Driver X [driver index X, cost]
+    std::unordered_map<int, std::vector<std::pair<int,int>>> costMap;
+    for (int source : ctx.sourceSet){
+        std::vector<std::pair<int, int>> driverCosts;
+        for (int i = 0; i < ctx.numOfDrivers; i++){
+            int toSrc = ctx.storedTimes[{i, source}];
+            int toDst = ctx.storedTimes[{source, ctx.sourceToDest[source]}];
+            int totalCost = toSrc + toDst;
+            driverCosts.emplace_back(i, totalCost);
+        }
+        costMap[source] = driverCosts;
+    }
+
+    std::cout << "Cost Map (passenger source -> [(driver, cost)]):\n";
+    for (const auto& [source, drivers] : costMap) {
+        std::cout << "Passenger " << source << ": ";
+        for (const auto& [driverIdx, cost] : drivers) {
+            std::cout << "(" << driverIdx << ", " << cost << ") ";
+        }
+        std::cout << "\n";
+    }
+    std::cout << "--------------------------------\n";
+
+    //delegate drivers
+    // res from driver -> array of passengers
+    std::unordered_map<int, std::vector<int>> res;
+    for (const auto& [source, drivers] : costMap){
+        auto best = std::min_element(drivers.begin(), drivers.end(),
+        [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+        return a.second < b.second;
+    });
+        int bestDriver = best->first;
+        res[bestDriver].push_back(source);
+    }
+
+    std::cout << "Driver Assignments (driver -> [passenger sources]):\n";
+    for (const auto& [driver, passengers] : res) {
+        std::cout << "Driver " << driver << ": ";
+        for (int p : passengers) {
+            std::cout << p << " ";
+        }
+        std::cout << "\n";
+    }
+    std::cout << "================================\n";
+
+    return res;
+};
 
 int main()
 {
@@ -284,7 +392,10 @@ int main()
             indexOf[c] = idx;
         }
     }
+    RoutingContext ctx;
     int D = static_cast<int>(nodes.size()); 
+    ctx.numOfDrivers = D;
+
     // insert passengers src
     for (auto const &pr : orderedPaxList) {
         auto const &srcPair = pr.first;
@@ -299,7 +410,7 @@ int main()
     int P = totalAfterSrc - D;  
     // P = number of unique passenger‐src indices 
     // (these occupy [D .. D+P-1]).
-
+    ctx.numOfPassengerSources = P;
     //insert all passenger‐dst coordinates:
     for (auto const &pr : orderedPaxList) {
         auto const &dstPair = pr.second;
@@ -310,6 +421,8 @@ int main()
             indexOf[c] = newIdx;
         }
     }
+    ctx.nodes = nodes;
+
     std::unordered_map<int, int> sourceToDest;
     std::unordered_map<int, int> destToSource;
     std::unordered_set<int> sourceSet;
@@ -329,8 +442,15 @@ int main()
         destToSource[dstIndex] = srcIndex;
     }
     
+    ctx.destSet = destSet;
+    ctx.sourceSet = sourceSet;
+    ctx.sourceToDest = sourceToDest;
+    ctx.destToSource = destToSource;
+
     int N = static_cast<int>(nodes.size());
     int Q = N - (D + P);
+    ctx.numOfPassengerDest = Q;
+
     // Q = number of unique passenger‐dst indices 
     // (these occupy [D+P .. D+P+Q-1]).
 
@@ -347,11 +467,6 @@ int main()
             adj[i].push_back(j);
         }
     }
-
-        //driver i -> all passengers dest
-        // for (int j = D + P; j < D + P + Q;++j){
-        //     adj[i].push_back(j);
-        // }
     //passengers source and dest 
     for (int i = D; i < D + P + Q; ++i) {
             for (int j = D; j < D + P + Q; ++j){
@@ -359,7 +474,7 @@ int main()
                 adj[i].push_back(j);
         }
     }
-
+    ctx.adjacencyList = adj;
 // 5) Print for every node: its own (lat,lng), then all adjacent coords
     for (int i = 0; i < N; ++i) {
         const Coord &me = nodes[i];
@@ -382,41 +497,136 @@ int main()
         std::cout << "\n";
     }
 
+    std::cout << "=== sourceToDest Map ===\n";
+    for (const auto& [src, dst] : sourceToDest) {
+        std::cout << "  Source " << src << " -> Destination " << dst << "\n";
+    }
 
-    auto [shortestTime, path] = findRoute(nodes, adj, sourceToDest, destToSource, sourceSet, destSet); 
+    std::cout << "\n=== destToSource Map ===\n";
+    for (const auto& [dst, src] : destToSource) {
+        std::cout << "  Destination " << dst << " -> Source " << src << "\n";
+    }
 
-    std::cout << "Shortest time: " << shortestTime << "\n";   
-    std::cout << path.size() << "\n";   
-    for (int i : path) {
-        const Coord &me = nodes[i];
-        std::cout << "Node " << i << " (lat=" << me.lat
-                  << ", lng=" << me.lng << "):\n";
+    auto assignmentRes = decipherRoutes(ctx);
+    //setOfPaths [time, path] -> of each driver
+    std::unordered_set<std::pair<int, std::vector<int>>, PathHash, PathEqual> setOfPaths;
+    for (const auto& [driverIdx, assignedSources] : assignmentRes) {
+        //construct sub adj list 
+        std::vector<std::vector<int>> currentSubAdj;
+        currentSubAdj.resize(nodes.size());
+        for (auto const& source : assignedSources){
+            //driver i -> all passengers source
+            currentSubAdj[driverIdx].push_back(source);
+        }
+        int assignedSourcesSize = assignedSources.size();
+        //passenger source -> every other source / dest besides itself
+        for (int i = 0; i < assignedSourcesSize; i++){
+            int src = assignedSources[i];
+            for (int j = 0; j < assignedSourcesSize; j++){
+                auto otherSrc = assignedSources[j];
+                int otherDest = sourceToDest[otherSrc];
+                if (i != j){
+                    currentSubAdj[src].push_back(otherSrc);
+                }
+                currentSubAdj[src].push_back(otherDest);
+            }
+        }
+        //dest -> every source/dest besides itself 
+        for (int i = 0; i < assignedSourcesSize; i++){
+            int dest = sourceToDest[assignedSources[i]];
+            for (int j = 0; j < assignedSourcesSize; j++){
+                int otherSrc = assignedSources[j];
+                int otherDest = sourceToDest[otherSrc];
+                if (i != j){
+                    currentSubAdj[dest].push_back(otherDest);
+                }
+                currentSubAdj[dest].push_back(otherSrc);
+            }
+        }
+        
+        std::cout << "=== Subgraph for Driver " << driverIdx << " ===\n";
+        for (int i = 0; i < currentSubAdj.size(); ++i) {
+            // Only print nodes that have neighbors
+            if (currentSubAdj[i].empty()) continue;
 
-        // Are we in the driver block or passenger block?
-        if (i < D) {
-            std::cout << "  [driver-node] -> Neighbors:\n";
-        } else {
-            std::cout << "  [passenger-node] -> Neighbors:\n";
+            const Coord &me = nodes[i];
+            std::cout << "Node " << i << " (lat=" << me.lat
+                    << ", lng=" << me.lng << ", type=" << roleToString(me.role) << "):\n";
+
+            if (i < D) {
+                std::cout << "  [driver-node] -> Neighbors:\n";
+            } else {
+                std::cout << "  [passenger-node] -> Neighbors:\n";
+            }
+
+            for (int nb : currentSubAdj[i]) {
+                const Coord &c = nodes[nb];
+                std::cout << "    -> Node " << nb
+                        << " at (lat=" << c.lat
+                        << ", lng=" << c.lng << ", type=" << roleToString(c.role) << ")\n";
+            }
+            std::cout << "\n";
         }
 
-        std::cout << "\n";
+        auto [shortestTime, path] = findRoute(nodes, currentSubAdj, sourceToDest, destToSource, sourceSet, destSet, assignedSourcesSize * 2, driverIdx);
+
+        std::cout << "Shortest time: " << shortestTime << "\n";   
+            std::cout << path.size() << "\n";   
+            for (int i : path) {
+                const Coord &me = nodes[i];
+                std::cout << "Node " << i << " (lat=" << me.lat
+                        << ", lng=" << me.lng << "):\n";
+
+                // Are we in the driver block or passenger block?
+                if (i < D) {
+                    std::cout << "  [driver-node] -> Neighbors:\n";
+                } else {
+                    std::cout << "  [passenger-node] -> Neighbors:\n";
+                }
+
+                std::cout << "\n";
+            }
+        setOfPaths.insert({shortestTime, path});
+
     }
 
+    // auto [shortestTime, path] = findRoute(nodes, adj, sourceToDest, destToSource, sourceSet, destSet, adj.size()-1); 
 
-    crow::json::wvalue data;
-    data["success"] = true;
-    data["message"] = "Request handled properly";
-    data["shortestTime"] = shortestTime;
-    for (int i = 0; i < path.size(); i++) {
-        data["path"][i][0] = nodes[path[i]].lng;
-        data["path"][i][1] = nodes[path[i]].lat;
-    }
-    crow::response res(data);
-  //  res.set_header("Content-Type", "application/json");
-    return res;
+    // std::cout << "Shortest time: " << shortestTime << "\n";   
+    // std::cout << path.size() << "\n";   
+    // for (int i : path) {
+    //     const Coord &me = nodes[i];
+    //     std::cout << "Node " << i << " (lat=" << me.lat
+    //               << ", lng=" << me.lng << "):\n";
+
+    //     // Are we in the driver block or passenger block?
+    //     if (i < D) {
+    //         std::cout << "  [driver-node] -> Neighbors:\n";
+    //     } else {
+    //         std::cout << "  [passenger-node] -> Neighbors:\n";
+    //     }
+
+    //     std::cout << "\n";
+    // }
     
 
+   crow::json::wvalue data;
+    data["success"] = true;
+    data["message"] = "Request handled successfully";
 
+    int pathIdx = 0;
+    for (const auto& [shortestTime, path] : setOfPaths) {
+        data["paths"][pathIdx]["shortestTime"] = shortestTime;
+        for (int i = 0; i < path.size(); ++i) {
+            data["paths"][pathIdx]["path"][i][0] = nodes[path[i]].lng;
+            data["paths"][pathIdx]["path"][i][1] = nodes[path[i]].lat;
+        }
+        ++pathIdx;
+    }
+
+    crow::response res(data);
+    res.set_header("Content-Type", "application/json");
+    return res;
     });
     app.port(PORT).multithreaded().run();
 

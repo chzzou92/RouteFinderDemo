@@ -82,7 +82,10 @@ export default function MainApp() {
       Math.pow(1.8, 22.0 - zoom),
   };
 
-  const defaultDrivers = [[40.4174, -74.4927]];
+  const defaultDrivers = [
+    [40.4174, -74.4927],
+    [40.47876, -74.37787],
+  ];
   const defaultPassengers = [
     [
       [40.439562, -74.436765],
@@ -297,107 +300,113 @@ export default function MainApp() {
     const map = mapRef.current;
     if (!map || !coordsList || coordsList.length < 2) return null;
 
-    console.log("Requesting route for coordinates:", coordsList);
-
-    // Format coordinates as 'lng,lat;lng,lat;...' string for Mapbox API
-    const coordString = coordsList
-      .map((coord) => `${coord[0]},${coord[1]}`)
-      .join(";");
+    // Format as "lng,lat;lng,lat;…"
+    const coordString = coordsList.map((c) => `${c[0]},${c[1]}`).join(";");
 
     const res = await fetch(
       `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/` +
-        `${coordString}` +
+        coordString +
         `?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`
     );
     const json = await res.json();
-
-    if (!json.routes || json.routes.length === 0) {
-      console.error("No routes found");
-
-      return null;
-    }
+    if (!json.routes?.length) return null;
 
     const geom = json.routes[0].geometry;
-
-    //set path for driver
-    setFinalDriverPath(geom.coordinates);
-    const feature = {
+    return {
       type: "Feature",
       properties: {},
       geometry: geom,
     };
+  }
 
-    // Initialize the route line source and layer if not present
+  async function drawMultipleRoutes(listOfCoordLists) {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // 1) Initialize sources & layers once
     if (!map.getSource("finished-route")) {
       map.addSource("finished-route", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
+
+      // Define palettes for each glow level
+      const innerColors = [
+        "#fbb4ae",
+        "#b3cde3",
+        "#ccebc5",
+        "#decbe4",
+        "#fed9a6",
+      ];
+      const outerColors = [
+        "#f768a1",
+        "#80b1d3",
+        "#a6d854",
+        "#b9e2d8",
+        "#fdb462",
+      ];
+      const coreColors = [
+        "#ae017e",
+        "#016c59",
+        "#1b7837",
+        "#542788",
+        "#d95f02",
+      ];
+
+      // Helper to build a match expression
+      const makeMatch = (colors) => {
+        const expr = ["match", ["get", "routeIndex"]];
+        colors.forEach((c, i) => {
+          expr.push(i, c);
+        });
+        expr.push(colors[0]); // fallback
+        return expr;
+      };
+
+      // Inner glow
       map.addLayer({
-        id: "finished-route-line-inner",
+        id: "finished-route-inner",
         type: "line",
         source: "finished-route",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#d45bcc",
+          "line-color": makeMatch(innerColors),
           "line-width": 14,
           "line-opacity": 0.2,
         },
       });
+
+      // Outer glow
       map.addLayer({
-        id: "gfinished-route-line-outer",
+        id: "finished-route-outer",
         type: "line",
         source: "finished-route",
-        layout: { "line-cap": "round", "line-join": "round" },
+        layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#de87d8",
+          "line-color": makeMatch(outerColors),
           "line-width": 8,
           "line-opacity": 0.5,
         },
       });
 
+      // Core line
       map.addLayer({
-        id: "finished-route-line-core",
+        id: "finished-route-core",
         type: "line",
         source: "finished-route",
-        layout: { "line-cap": "round", "line-join": "round" },
+        layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#d420c8",
+          "line-color": makeMatch(coreColors),
           "line-width": 4,
           "line-opacity": 1,
         },
       });
-      routesRef.current = [];
-    }
 
-    routesRef.current.push(feature);
-    map.getSource("finished-route").setData({
-      type: "FeatureCollection",
-      features: routesRef.current,
-    });
-
-    // Create numbered point features for labels
-    const pointFeatures = coordsList.map((coord, index) => ({
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: coord,
-      },
-      properties: {
-        order: String(index + 1), // numbering labels as strings
-      },
-    }));
-
-    // Initialize or update the source and layer for the labels
-    if (!map.getSource("route-points")) {
+      // Points labels (reuse earlier match for color too if desired)
       map.addSource("route-points", {
         type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: pointFeatures,
-        },
+        data: { type: "FeatureCollection", features: [] },
       });
-
       map.addLayer({
         id: "route-points-labels",
         type: "symbol",
@@ -406,21 +415,67 @@ export default function MainApp() {
           "text-field": ["get", "order"],
           "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
           "text-size": 14,
-          "text-offset": [0, -2], // raise number above the point
+          "text-offset": [0, -2],
           "text-anchor": "bottom",
         },
         paint: {
-          "text-color": "#0000ff",
+          "text-color": [
+            "match",
+            ["get", "routeIndex"],
+            0,
+            coreColors[0],
+            1,
+            coreColors[1],
+            2,
+            coreColors[2],
+            /*…*/ coreColors[0],
+          ],
         },
       });
-    } else {
-      map.getSource("route-points").setData({
-        type: "FeatureCollection",
-        features: pointFeatures,
-      });
+
+      routesRef.current = [];
     }
 
-    return feature;
+    // 2) Fetch all routes in parallel
+    const features = await Promise.all(
+      listOfCoordLists.map((coordsList, routeIndex) =>
+        getFinishedRoute(coordsList).then((feature) => {
+          if (feature) {
+            feature.properties = feature.properties || {};
+            feature.properties.routeIndex = routeIndex;
+          }
+          return feature;
+        })
+      )
+    );
+
+    // 3) Update the line source
+    routesRef.current = features.filter((f) => f);
+    map.getSource("finished-route").setData({
+      type: "FeatureCollection",
+      features: routesRef.current,
+    });
+
+    // 4) Build and update point features with routeIndex
+    const pointFeatures = [];
+    listOfCoordLists.forEach((coordsList, routeIndex) => {
+      coordsList.forEach((coord, idx) => {
+        pointFeatures.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: coord },
+          properties: {
+            order: String(idx + 1),
+            routeIndex,
+          },
+        });
+      });
+    });
+    map.getSource("route-points").setData({
+      type: "FeatureCollection",
+      features: pointFeatures,
+    });
+
+    return routesRef.current;
   }
 
   async function getRoute(start, end) {
@@ -545,7 +600,7 @@ export default function MainApp() {
       <SendData
         drivers={driversMap ? driversMap : defaultDrivers}
         passengers={passengersMap ? passengersMap : defaultPassengers}
-        getFinishedRoute={getFinishedRoute}
+        drawMultipleRoutes={drawMultipleRoutes}
       />
       <div id="map-container" ref={mapContainerRef} />
     </>

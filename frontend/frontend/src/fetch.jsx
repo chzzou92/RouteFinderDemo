@@ -3,7 +3,7 @@ import Loader from "./Loader";
 import TimeButton from "./TimeButton";
 import "./Fetch.css";
 
-function SendData({ setFetchData, drivers, passengers, getFinishedRoute }) {
+function SendData({ setFetchData, drivers, passengers, drawMultipleRoutes }) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(false);
@@ -30,14 +30,16 @@ function SendData({ setFetchData, drivers, passengers, getFinishedRoute }) {
 
       const data = await res.json();
 
-      if (!res.ok || data.shortestTime === -1 || data.path.length === 0) {
+      if (!res.ok) {
         setError(true);
         throw new Error(`Submit failed: ${res.status}`);
       }
 
       console.log("Success", data);
-      setFastestTime(data.shortestTime);
-      getFinishedRoute(data.path);
+
+     // setFastestTime(data.shortestTime);
+      const coordLists = data.paths.map(p => p.path);
+      drawMultipleRoutes(coordLists);
     } catch (err) {
       console.error("Caught fetch error:", err);
       setError(true);
