@@ -23,6 +23,7 @@ export default function MainApp() {
   const [loadComplete, setLoadComplete] = useState(false);
   const carModelRef = useRef(null);
 
+  const passengerTransforms = [];
   const carOrigin = driversMap
     ? [driversMap[0][1], driversMap[0][0]]
     : [-74.4927, 40.4174];
@@ -100,14 +101,13 @@ export default function MainApp() {
   const defaultDrivers = [
     [40.4174, -74.4927],
     [40.47876, -74.37787],
-  ];
-  const defaultDrivers2 = [
-    [-74.4927, 40.4174],
-    [-74.37787, 40.47876],
+    [40.487974, -74.462616],
+    [40.615775, -74.469859]
   ];
 
-  const carTransforms = createCarModelTransforms(defaultDrivers2);
-  const passengerTransforms = [];
+  const carTransforms = createCarModelTransforms(
+    defaultDrivers.map(([lat, lng]) => [lng, lat])
+  );
 
   const defaultPassengers = [
     [
@@ -264,7 +264,6 @@ export default function MainApp() {
       carTransforms.forEach((t) => {
         t.scale = t.scaleBase * Math.pow(1.8, 22.5 - mapRef.current.getZoom());
       });
-      console.log(mapRef.current.getZoom());
       passengerTransforms.forEach((t) => {
         t.scale = t.scaleBase * Math.pow(1.2, 22.0 - mapRef.current.getZoom());
       });
@@ -304,7 +303,6 @@ export default function MainApp() {
       finalDriverPaths.length > 0 &&
       assignPathToCarRef.current
     ) {
-      console.log(finalDriverPaths);
       finalDriverPaths.forEach((path, index) => {
         assignPathToCarRef.current(index, path);
       });
@@ -328,7 +326,10 @@ export default function MainApp() {
   async function drawMultipleRoutes(listOfCoordLists) {
     const map = mapRef.current;
     if (!map) return;
-
+    // add driver origin markers:
+    listOfCoordLists.forEach((coordList) => {
+      addMarker(coordList[0][0], coordList[0][1], "green");
+    });
     // 1) Initialize sources & layers once
     if (!map.getSource("finished-route")) {
       map.addSource("finished-route", {
@@ -443,7 +444,7 @@ export default function MainApp() {
 
     // 2) Fetch all routes in parallel
     const routes = await Promise.all(
-      listOfCoordLists.map(async (coordsList) => {
+      listOfCoordLists.map(async (coordsList, index) => {
         const coordString = coordsList.map((c) => `${c[0]},${c[1]}`).join(";");
         const res = await fetch(
           `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/` +
@@ -455,7 +456,9 @@ export default function MainApp() {
 
         return {
           type: "Feature",
-          properties: {},
+          properties: {
+            routeIndex: index,
+          },
           geometry: json.routes[0].geometry,
         };
       })
@@ -466,7 +469,6 @@ export default function MainApp() {
       .map((feature) => feature.geometry.coordinates);
 
     setFinalDriverPaths(validRoutes);
-    console.log(validRoutes);
 
     // 3) Update the line source
     routesRef.current = routes.filter((f) => f);

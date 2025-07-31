@@ -255,11 +255,11 @@ std::unordered_map<int, std::vector<int>> decipherRoutes(RoutingContext& ctx ){
         }
     }
 
-    std::cout << "Stored Times (from -> to : time):\n";
-    for (const auto& [key, value] : ctx.storedTimes) {
-        std::cout << "(" << key.first << " -> " << key.second << ") : " << value << "\n";
-    }
-    std::cout << "--------------------------------\n";
+    // std::cout << "Stored Times (from -> to : time):\n";
+    // for (const auto& [key, value] : ctx.storedTimes) {
+    //     std::cout << "(" << key.first << " -> " << key.second << ") : " << value << "\n";
+    // }
+    // std::cout << "--------------------------------\n";
 
     //create Costmap, from passenger -> array of costs to take Driver X [driver index X, cost]
     std::unordered_map<int, std::vector<std::pair<int,int>>> costMap;
@@ -287,13 +287,37 @@ std::unordered_map<int, std::vector<int>> decipherRoutes(RoutingContext& ctx ){
     //delegate drivers
     // res from driver -> array of passengers
     std::unordered_map<int, std::vector<int>> res;
+    std::unordered_set<int> assignedSources;
+    //assign each driver the route that has the lowest cost for them 
+    //so that each driver has at least one route 
+    for (int driver = 0; driver < ctx.numOfDrivers; ++ driver){
+        int bestSource = -1;
+        int bestCost = INT_MAX;
+
+        for (const auto& [source, drivers] : costMap){
+            if (assignedSources.count(source)) continue;
+            
+            int cost = drivers[driver].second;
+            if (cost < bestCost) {
+                bestCost = cost;
+                bestSource = source;
+            }
+        }
+        if (bestSource != -1){
+            res[driver].push_back(bestSource);
+            assignedSources.insert(bestSource);
+        }
+    }
+    //assign the rest 
     for (const auto& [source, drivers] : costMap){
+        if (assignedSources.count(source)) continue;
         auto best = std::min_element(drivers.begin(), drivers.end(),
         [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
         return a.second < b.second;
     });
         int bestDriver = best->first;
         res[bestDriver].push_back(source);
+        assignedSources.insert(source);
     }
 
     std::cout << "Driver Assignments (driver -> [passenger sources]):\n";

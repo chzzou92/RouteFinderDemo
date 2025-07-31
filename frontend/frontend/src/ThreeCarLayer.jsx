@@ -7,7 +7,7 @@ export default function createThreeCarLayer(map, modelTransformsList) {
   const camera = new THREE.Camera();
   const cars = []; // Array of { model, transform, path, progress, etc. }
 
-  const speed = 0.000002;
+  const speed = 0.000003;
 
   const ambient = new THREE.AmbientLight(0xffffff, 1.3);
   scene.add(ambient);
@@ -15,8 +15,10 @@ export default function createThreeCarLayer(map, modelTransformsList) {
   const loader = new GLTFLoader();
 
   modelTransformsList.forEach((transform, index) => {
-    loader.load("/Car1/car1.gltf", (gltf) => {
-      console.log(transform);
+    const carPath = index % 2 === 0 ? "/Car2/car2.gltf" : "/Car1/car1.gltf";
+
+    loader.load(carPath, (gltf) => {
+   //   console.log(transform);
       const carModel = gltf.scene;
       carModel.matrixAutoUpdate = false;
       scene.add(carModel);
@@ -40,7 +42,7 @@ export default function createThreeCarLayer(map, modelTransformsList) {
       const c = mapboxgl.MercatorCoordinate.fromLngLat([lng, lat], 2);
       return new THREE.Vector3(c.x, c.y, c.z);
     });
-    console.log("car path: ", car.path);
+    //console.log("car path: ", car.path);
     car.totalDistance = 0;
     car.cumulativeDistances = [0];
     for (let i = 1; i < car.path.length; i++) {

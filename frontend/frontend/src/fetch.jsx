@@ -36,8 +36,9 @@ function SendData({ setFetchData, drivers, passengers, drawMultipleRoutes }) {
       }
 
       console.log("Success", data);
-      const totalTime = data.paths.reduce((sum,p) => sum + p.shortestTime, 0);
-      setFastestTime(totalTime);
+     // const totalTime = data.paths.reduce((sum,p) => sum + p.shortestTime, 0);
+      const maxTime = Math.max(...data.paths.map(p => p.shortestTime));
+      setFastestTime(maxTime);
       const coordLists = data.paths.map(p => p.path);
       drawMultipleRoutes(coordLists);
     } catch (err) {

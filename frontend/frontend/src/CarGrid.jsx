@@ -18,6 +18,25 @@ const CarGrid = ({
   const lastAssignedLocationRef = useRef(null);
   const [locationMap, setLocationMap] = useState(locations);
 
+  function shortenAddress(address) {
+    if (!address || typeof address !== "string") return "";
+    const parts = address.split(",").map((p) => p.trim());
+
+    if (parts.length >= 3) {
+      const name = parts[0];
+      const words = name.split(" ");
+
+      // Use full name if short, or first 3 words if longer
+      const shortFirst = name.length <= 25 ? name : words.slice(0, 3).join(" ");
+
+      return `${shortFirst}, ${parts[1]}, ${parts[2]}`;
+    } else if (parts.length === 2) {
+      return `${parts[0]}, ${parts[1]}`;
+    } else {
+      return address;
+    }
+  }
+
   useEffect(() => {
     if (
       selectedItem &&
@@ -66,8 +85,8 @@ const CarGrid = ({
                 setSelectedItem(pickupKey);
               }}
             >
-              <h2 className="font-bold text-black text-mid">
-                {locationMap.get(pickupKey)}
+              <h2 className="font-bold text-black text-base text-sm">
+                {shortenAddress(locationMap.get(pickupKey))}
               </h2>
             </div>
             {type === "Passenger" ? (
