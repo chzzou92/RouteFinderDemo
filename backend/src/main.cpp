@@ -69,7 +69,6 @@ struct RoutingContext{
     int numOfDrivers;
     int numOfPassengerSources;
     int numOfPassengerDest;
-    std::vector<std::vector<int>> adjacencyList;
     std::unordered_map<int, int> sourceToDest;
     std::unordered_map<int, int> destToSource;
     std::unordered_set<int> sourceSet;
@@ -187,7 +186,7 @@ int getTime(const Coord& start, const Coord& end) {
 }
 
 
-std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vector<std::vector<int>>& adj, std::unordered_map<int, int>& sourceToDest, std::unordered_map<int, int>& destToSource, std::unordered_set<int>& sourceSet, std::unordered_set<int>& destSet, int maxNodes, int driverIdx) {
+std::pair<int, std::vector<int>> findRoute(std::vector<std::vector<int>>& adj, int maxNodes, int driverIdx, RoutingContext& ctx) {
     using namespace std;
     // time, node, visited set, and path 
     using nodeType = tuple<int, int, unordered_set<int>, vector<int>, int>;
@@ -197,7 +196,7 @@ std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vecto
     };
 
     priority_queue<nodeType, vector<nodeType>, decltype(cmp)> q(cmp);
-    unordered_map<pair<int, int>, int, nodeHash> storedTimes; 
+  //  unordered_map<pair<int, int>, int, nodeHash> storedTimes; 
 
     q.push({0, driverIdx, unordered_set<int>(), vector<int>(1, driverIdx), 0}); 
     while (!q.empty()) {
@@ -205,21 +204,21 @@ std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vecto
         q.pop();
 
         for (auto neighbor : adj[cNode]) {
-            if (sourceSet.count(neighbor) && cInCar == 4) continue;
+            if (ctx.sourceSet.count(neighbor) && cInCar == 4) continue;
             if (cSet.count(neighbor)) continue; 
-            if (destSet.count(neighbor) && !cSet.count(destToSource[neighbor])) continue; 
-            if (!storedTimes.count({cNode, neighbor})) {
-                storedTimes[{cNode, neighbor}] = getTime(nodes[cNode], nodes[neighbor]);
+            if (ctx.destSet.count(neighbor) && !cSet.count(ctx.destToSource[neighbor])) continue; 
+            if (!ctx.storedTimes.count({cNode, neighbor})) {
+                ctx.storedTimes[{cNode, neighbor}] = getTime(ctx.nodes[cNode], ctx.nodes[neighbor]);
             }
 
-            if (destSet.count(neighbor)){
+            if (ctx.destSet.count(neighbor)){
                 cInCar -= 1;
             } else{
                 cInCar += 1;
             }
             int newTime = cTime; auto newSet = cSet; auto newPath = cPath; 
             // Add time to neighbor onto current time
-            newTime += storedTimes[{cNode, neighbor}];
+            newTime += ctx.storedTimes[{cNode, neighbor}];
             // Add neighbor to visited nodes + onto path 
             newSet.insert(neighbor); newPath.push_back(neighbor);
             // End BFS if all passengers have been dropped
@@ -228,7 +227,7 @@ std::pair<int, std::vector<int>> findRoute(std::vector<Coord>& nodes, std::vecto
             q.push({newTime, neighbor, newSet, newPath, cInCar});
         }
     }
-    for (const auto& pair: storedTimes){
+    for (const auto& pair: ctx.storedTimes){
         std::cout << "(" << pair.first.first << ", " << pair.first.second << ") => " << pair.second << "\n";
     }
     return {-1, {}};
@@ -451,115 +450,50 @@ int main()
     int Q = N - (D + P);
     ctx.numOfPassengerDest = Q;
 
-    // Q = number of unique passenger‐dst indices 
-    // (these occupy [D+P .. D+P+Q-1]).
-
-    std::cout << "Total unique nodes (drivers + passenger src/dst): " << N << "\n";
-    std::cout << "  Drivers: indices [0 .. " << (D - 1) << "]\n";
-    std::cout << "  Passenger-src: indices [ " << D << " .. " << (D + P - 1) << " ]\n";
-    std::cout << "  Passenger-dst: indices [ " << (D + P) << " .. " << (D + P + Q - 1) << " ]\n\n";
-
-    std::vector<std::vector<int>> adj(N);
-    //drivers 
-    for (int i = 0; i < D; ++i){
-        //driver i -> all passengers source
-        for (int j = D; j < D + P; ++j){
-            adj[i].push_back(j);
-        }
-    }
-    //passengers source and dest 
-    for (int i = D; i < D + P + Q; ++i) {
-            for (int j = D; j < D + P + Q; ++j){
-                if (i == j) continue;
-                adj[i].push_back(j);
-        }
-    }
-    ctx.adjacencyList = adj;
-// 5) Print for every node: its own (lat,lng), then all adjacent coords
-    for (int i = 0; i < N; ++i) {
-        const Coord &me = nodes[i];
-        std::cout << "Node " << i << " (lat=" << me.lat
-                  << ", lng=" << me.lng << ", type=" << roleToString(me.role) << "):\n";
-
-        // Are we in the driver block or passenger block?
-        if (i < D) {
-            std::cout << "  [driver-node] -> Neighbors:\n";
-        } else {
-            std::cout << "  [passenger-node] -> Neighbors:\n";
-        }
-
-        for (int nb : adj[i]) {
-            const Coord &c = nodes[nb];
-            std::cout << "    -> Node " << nb
-                      << " at (lat=" << c.lat
-                      << ", lng=" << c.lng << ", type=" << roleToString(c.role) << ")\n";
-        }
-        std::cout << "\n";
-    }
-
-    std::cout << "=== sourceToDest Map ===\n";
-    for (const auto& [src, dst] : sourceToDest) {
-        std::cout << "  Source " << src << " -> Destination " << dst << "\n";
-    }
-
-    std::cout << "\n=== destToSource Map ===\n";
-    for (const auto& [dst, src] : destToSource) {
-        std::cout << "  Destination " << dst << " -> Source " << src << "\n";
-    }
-
     auto assignmentRes = decipherRoutes(ctx);
+
     //setOfPaths [time, path] -> of each driver
     std::unordered_set<std::pair<int, std::vector<int>>, PathHash, PathEqual> setOfPaths;
-    for (const auto& [driverIdx, assignedSources] : assignmentRes) {
-        //construct sub adj list 
-        std::vector<std::vector<int>> currentSubAdj;
-        currentSubAdj.resize(nodes.size());
-        for (auto const& source : assignedSources){
-            //driver i -> all passengers source
-            currentSubAdj[driverIdx].push_back(source);
-        }
-        int assignedSourcesSize = assignedSources.size();
-        //passenger source -> every other source / dest besides itself
-        for (int i = 0; i < assignedSourcesSize; i++){
-            int src = assignedSources[i];
-            for (int j = 0; j < assignedSourcesSize; j++){
-                auto otherSrc = assignedSources[j];
-                int otherDest = sourceToDest[otherSrc];
-                if (i != j){
-                    currentSubAdj[src].push_back(otherSrc);
-                }
-                currentSubAdj[src].push_back(otherDest);
-            }
-        }
-        //dest -> every source/dest besides itself 
-        for (int i = 0; i < assignedSourcesSize; i++){
-            int dest = sourceToDest[assignedSources[i]];
-            for (int j = 0; j < assignedSourcesSize; j++){
-                int otherSrc = assignedSources[j];
-                int otherDest = sourceToDest[otherSrc];
-                if (i != j){
-                    currentSubAdj[dest].push_back(otherDest);
-                }
-                currentSubAdj[dest].push_back(otherSrc);
-            }
-        }
-        
-        std::cout << "=== Subgraph for Driver " << driverIdx << " ===\n";
-        for (int i = 0; i < currentSubAdj.size(); ++i) {
-            // Only print nodes that have neighbors
-            if (currentSubAdj[i].empty()) continue;
 
+    if (assignmentRes.empty()){
+        std::cout << "it's empty";
+    // Q = number of unique passenger‐dst indices 
+        // (these occupy [D+P .. D+P+Q-1]).
+
+        std::cout << "Total unique nodes (drivers + passenger src/dst): " << N << "\n";
+        std::cout << "  Drivers: indices [0 .. " << (D - 1) << "]\n";
+        std::cout << "  Passenger-src: indices [ " << D << " .. " << (D + P - 1) << " ]\n";
+        std::cout << "  Passenger-dst: indices [ " << (D + P) << " .. " << (D + P + Q - 1) << " ]\n\n";
+
+        std::vector<std::vector<int>> adj(N);
+        //drivers 
+        for (int i = 0; i < D; ++i){
+            //driver i -> all passengers source
+            for (int j = D; j < D + P; ++j){
+                adj[i].push_back(j);
+            }
+        }
+        //passengers source and dest 
+        for (int i = D; i < D + P + Q; ++i) {
+                for (int j = D; j < D + P + Q; ++j){
+                    if (i == j) continue;
+                    adj[i].push_back(j);
+            }
+        }
+    // 5) Print for every node: its own (lat,lng), then all adjacent coords
+        for (int i = 0; i < N; ++i) {
             const Coord &me = nodes[i];
             std::cout << "Node " << i << " (lat=" << me.lat
                     << ", lng=" << me.lng << ", type=" << roleToString(me.role) << "):\n";
 
+            // Are we in the driver block or passenger block?
             if (i < D) {
                 std::cout << "  [driver-node] -> Neighbors:\n";
             } else {
                 std::cout << "  [passenger-node] -> Neighbors:\n";
             }
 
-            for (int nb : currentSubAdj[i]) {
+            for (int nb : adj[i]) {
                 const Coord &c = nodes[nb];
                 std::cout << "    -> Node " << nb
                         << " at (lat=" << c.lat
@@ -568,48 +502,100 @@ int main()
             std::cout << "\n";
         }
 
-        auto [shortestTime, path] = findRoute(nodes, currentSubAdj, sourceToDest, destToSource, sourceSet, destSet, assignedSourcesSize * 2, driverIdx);
+        std::cout << "=== sourceToDest Map ===\n";
+        for (const auto& [src, dst] : sourceToDest) {
+            std::cout << "  Source " << src << " -> Destination " << dst << "\n";
+        }
 
-        std::cout << "Shortest time: " << shortestTime << "\n";   
-            std::cout << path.size() << "\n";   
-            for (int i : path) {
-                const Coord &me = nodes[i];
-                std::cout << "Node " << i << " (lat=" << me.lat
-                        << ", lng=" << me.lng << "):\n";
-
-                // Are we in the driver block or passenger block?
-                if (i < D) {
-                    std::cout << "  [driver-node] -> Neighbors:\n";
-                } else {
-                    std::cout << "  [passenger-node] -> Neighbors:\n";
+        std::cout << "\n=== destToSource Map ===\n";
+        for (const auto& [dst, src] : destToSource) {
+            std::cout << "  Destination " << dst << " -> Source " << src << "\n";
+        }
+    auto [shortestTime, path] = findRoute(adj, adj.size(), 0, ctx);
+    setOfPaths.insert({shortestTime, path});
+    } else {
+        for (const auto& [driverIdx, assignedSources] : assignmentRes) {
+                //construct sub adj list 
+                std::vector<std::vector<int>> currentSubAdj;
+                currentSubAdj.resize(nodes.size());
+                for (auto const& source : assignedSources){
+                    //driver i -> all passengers source
+                    currentSubAdj[driverIdx].push_back(source);
                 }
+                int assignedSourcesSize = assignedSources.size();
+                //passenger source -> every other source / dest besides itself
+                for (int i = 0; i < assignedSourcesSize; i++){
+                    int src = assignedSources[i];
+                    for (int j = 0; j < assignedSourcesSize; j++){
+                        auto otherSrc = assignedSources[j];
+                        int otherDest = sourceToDest[otherSrc];
+                        if (i != j){
+                            currentSubAdj[src].push_back(otherSrc);
+                        }
+                        currentSubAdj[src].push_back(otherDest);
+                    }
+                }
+                //dest -> every source/dest besides itself 
+                for (int i = 0; i < assignedSourcesSize; i++){
+                    int dest = sourceToDest[assignedSources[i]];
+                    for (int j = 0; j < assignedSourcesSize; j++){
+                        int otherSrc = assignedSources[j];
+                        int otherDest = sourceToDest[otherSrc];
+                        if (i != j){
+                            currentSubAdj[dest].push_back(otherDest);
+                        }
+                        currentSubAdj[dest].push_back(otherSrc);
+                    }
+                }
+                
+                std::cout << "=== Subgraph for Driver " << driverIdx << " ===\n";
+                for (int i = 0; i < currentSubAdj.size(); ++i) {
+                    // Only print nodes that have neighbors
+                    if (currentSubAdj[i].empty()) continue;
 
-                std::cout << "\n";
+                    const Coord &me = nodes[i];
+                    std::cout << "Node " << i << " (lat=" << me.lat
+                            << ", lng=" << me.lng << ", type=" << roleToString(me.role) << "):\n";
+
+                    if (i < D) {
+                        std::cout << "  [driver-node] -> Neighbors:\n";
+                    } else {
+                        std::cout << "  [passenger-node] -> Neighbors:\n";
+                    }
+
+                    for (int nb : currentSubAdj[i]) {
+                        const Coord &c = nodes[nb];
+                        std::cout << "    -> Node " << nb
+                                << " at (lat=" << c.lat
+                                << ", lng=" << c.lng << ", type=" << roleToString(c.role) << ")\n";
+                    }
+                    std::cout << "\n";
+                }
+                
+                auto [shortestTime, path] = findRoute(currentSubAdj, assignedSourcesSize * 2, driverIdx, ctx);
+
+                std::cout << "Shortest time: " << shortestTime << "\n";   
+                    std::cout << path.size() << "\n";   
+                    for (int i : path) {
+                        const Coord &me = nodes[i];
+                        std::cout << "Node " << i << " (lat=" << me.lat
+                                << ", lng=" << me.lng << "):\n";
+
+                        // Are we in the driver block or passenger block?
+                        if (i < D) {
+                            std::cout << "  [driver-node] -> Neighbors:\n";
+                        } else {
+                            std::cout << "  [passenger-node] -> Neighbors:\n";
+                        }
+
+                        std::cout << "\n";
+                    }
+                setOfPaths.insert({shortestTime, path});
+
             }
-        setOfPaths.insert({shortestTime, path});
-
     }
-
-    // auto [shortestTime, path] = findRoute(nodes, adj, sourceToDest, destToSource, sourceSet, destSet, adj.size()-1); 
-
-    // std::cout << "Shortest time: " << shortestTime << "\n";   
-    // std::cout << path.size() << "\n";   
-    // for (int i : path) {
-    //     const Coord &me = nodes[i];
-    //     std::cout << "Node " << i << " (lat=" << me.lat
-    //               << ", lng=" << me.lng << "):\n";
-
-    //     // Are we in the driver block or passenger block?
-    //     if (i < D) {
-    //         std::cout << "  [driver-node] -> Neighbors:\n";
-    //     } else {
-    //         std::cout << "  [passenger-node] -> Neighbors:\n";
-    //     }
-
-    //     std::cout << "\n";
-    // }
     
-
+    
    crow::json::wvalue data;
     data["success"] = true;
     data["message"] = "Request handled successfully";

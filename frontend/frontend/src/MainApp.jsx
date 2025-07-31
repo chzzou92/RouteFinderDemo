@@ -34,8 +34,8 @@ export default function MainApp() {
   const oldManOffset = { x: -0.000019, y: 0.00001, z: 0.0000004 };
   const oldWomanOffset = { x: -0.000018, y: -0.00001, z: 0.0000004 };
   const WomanOffset = { x: 0.00001, y: -0.00001, z: 0.0000004 };
-  const carAnimateRef = useRef(null);
-  const [finalDriverPath, setFinalDriverPath] = useState(null);
+  const assignPathToCarRef = useRef(null);
+  const [finalDriverPaths, setFinalDriverPaths] = useState(null);
   const models = [
     { offset: boyOffset, path: "/People/Boy/boy.gltf" },
     { offset: manOffset, path: "/People/Man/man.gltf" },
@@ -44,11 +44,15 @@ export default function MainApp() {
     { offset: oldWomanOffset, path: "/People/OldWoman/OldWoman.gltf" },
     { offset: WomanOffset, path: "/People/Woman/Woman.gltf" },
   ];
+
   function createModel(map, cords, offset, path) {
     const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
       cords,
       modelAltitude
     );
+
+    const scaleBase =
+      modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
 
     const modelTransform = {
       translateX: modelAsMercatorCoordinate.x + (offset?.x ?? 0),
@@ -57,35 +61,54 @@ export default function MainApp() {
       rotateX: modelRotate[0],
       rotateY: modelRotate[1],
       rotateZ: modelRotate[2],
-      scale:
-        modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() *
-        Math.pow(1.2, 22.0 - zoom),
+      scale: scaleBase * Math.pow(1.2, 22.0 - zoom),
+      scaleBase,
     };
+
+    passengerTransforms.push(modelTransform);
 
     const newThreeLayer = createPassengerThreeLayer(map, modelTransform, path);
     map.addLayer(newThreeLayer);
   }
 
-  const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
-    carOrigin,
-    modelAltitude
-  );
-  const modelTransform = {
-    translateX: modelAsMercatorCoordinate.x,
-    translateY: modelAsMercatorCoordinate.y,
-    translateZ: modelAsMercatorCoordinate.z,
-    rotateX: modelRotate[0],
-    rotateY: modelRotate[1],
-    rotateZ: modelRotate[2],
-    scale:
-      modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() *
-      Math.pow(1.8, 22.0 - zoom),
-  };
+  function createCarModelTransforms(
+    lngLatList,
+    modelAltitude = 2,
+    modelRotate = [Math.PI / 2, 0, 0]
+  ) {
+    return lngLatList.map(([lng, lat]) => {
+      const mercatorCoord = mapboxgl.MercatorCoordinate.fromLngLat(
+        [lng, lat],
+        modelAltitude
+      );
+      const scaleBase = mercatorCoord.meterInMercatorCoordinateUnits();
+      return {
+        translateX: mercatorCoord.x,
+        translateY: mercatorCoord.y,
+        translateZ: mercatorCoord.z,
+        rotateX: modelRotate[0],
+        rotateY: modelRotate[1],
+        rotateZ: modelRotate[2],
+        scale:
+          mercatorCoord.meterInMercatorCoordinateUnits() *
+          Math.pow(1.8, 23.0 - zoom),
+        scaleBase,
+      };
+    });
+  }
 
   const defaultDrivers = [
     [40.4174, -74.4927],
     [40.47876, -74.37787],
   ];
+  const defaultDrivers2 = [
+    [-74.4927, 40.4174],
+    [-74.37787, 40.47876],
+  ];
+
+  const carTransforms = createCarModelTransforms(defaultDrivers2);
+  const passengerTransforms = [];
+
   const defaultPassengers = [
     [
       [40.439562, -74.436765],
@@ -186,26 +209,26 @@ export default function MainApp() {
     clearSource("passsenger-route");
   };
 
-  const resetCar = () => {
-    //resets car position to original position
-    const car = carModelRef.current?.current;
-    if (car && finalDriverPath?.length > 0) {
-      const merc = mapboxgl.MercatorCoordinate.fromLngLat(
-        { lng: carOrigin[0], lat: carOrigin[1] },
-        2
-      );
-      car.position.set(merc.x, merc.y, merc.z);
-      modelTransform.translateX = merc.x;
-      modelTransform.translateY = merc.y;
-      modelTransform.translateZ = merc.z;
-    }
-  };
-  const resetMapPosition = () => {
-    mapRef.current.flyTo({
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
-    });
-  };
+  // const resetCar = () => {
+  //   //resets car position to original position
+  //   const car = carModelRef.current?.current;
+  //   if (car && finalDriverPath?.length > 0) {
+  //     const merc = mapboxgl.MercatorCoordinate.fromLngLat(
+  //       { lng: carOrigin[0], lat: carOrigin[1] },
+  //       2
+  //     );
+  //     car.position.set(merc.x, merc.y, merc.z);
+  //     modelTransform.translateX = merc.x;
+  //     modelTransform.translateY = merc.y;
+  //     modelTransform.translateZ = merc.z;
+  //   }
+  // };
+  // const resetMapPosition = () => {
+  //   mapRef.current.flyTo({
+  //     center: INITIAL_CENTER,
+  //     zoom: INITIAL_ZOOM,
+  //   });
+  // };
 
   const addMarker = (lng, lat, color) => {
     const Marker = new mapboxgl.Marker({ color })
@@ -238,20 +261,23 @@ export default function MainApp() {
       const mapCenter = mapRef.current.getCenter();
       setCenter([mapCenter.lng, mapCenter.lat]);
       setZoom(mapRef.current.getZoom());
-      modelTransform.scale =
-        modelAsMercatorCoordinate.meterInMercatorCoordinateUnits() *
-        Math.pow(1.8, 22.0 - mapRef.current.getZoom());
+      carTransforms.forEach((t) => {
+        t.scale = t.scaleBase * Math.pow(1.8, 22.5 - mapRef.current.getZoom());
+      });
+      console.log(mapRef.current.getZoom());
+      passengerTransforms.forEach((t) => {
+        t.scale = t.scaleBase * Math.pow(1.2, 22.0 - mapRef.current.getZoom());
+      });
+
       map.triggerRepaint();
     });
     map.on("style.load", () => {
-      const {
-        layer: driverThreeLayer,
-        animateCar,
-        carModel,
-      } = createThreeCarLayer(map, modelTransform);
+      const { layer: driverThreeLayer, assignPathToCar } = createThreeCarLayer(
+        map,
+        carTransforms
+      );
       map.addLayer(driverThreeLayer);
-      carAnimateRef.current = animateCar;
-      carModelRef.current = carModel;
+      assignPathToCarRef.current = assignPathToCar;
       setLoadComplete(true);
     });
 
@@ -274,18 +300,21 @@ export default function MainApp() {
 
   useEffect(() => {
     if (
-      finalDriverPath &&
-      finalDriverPath.length > 0 &&
-      carAnimateRef.current
+      finalDriverPaths &&
+      finalDriverPaths.length > 0 &&
+      assignPathToCarRef.current
     ) {
-      carAnimateRef.current(finalDriverPath);
+      console.log(finalDriverPaths);
+      finalDriverPaths.forEach((path, index) => {
+        assignPathToCarRef.current(index, path);
+      });
     }
-  }, [finalDriverPath]);
+  }, [finalDriverPaths]);
 
   const loadPassengers = (d, p) => {
-    d.forEach((driver) => {
-      addMarker(driver[1], driver[0], "green");
-    });
+    // d.forEach((driver) => {
+    //   addMarker(driver[1], driver[0], "green");
+    // });
     p.forEach(([source, dest], index) => {
       const lngLat = [source[1], source[0]];
       const model = models[index % models.length];
@@ -295,29 +324,6 @@ export default function MainApp() {
       getRoute([source[1], source[0]], [dest[1], dest[0]]);
     });
   };
-
-  async function getFinishedRoute(coordsList) {
-    const map = mapRef.current;
-    if (!map || !coordsList || coordsList.length < 2) return null;
-
-    // Format as "lng,lat;lng,lat;…"
-    const coordString = coordsList.map((c) => `${c[0]},${c[1]}`).join(";");
-
-    const res = await fetch(
-      `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/` +
-        coordString +
-        `?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`
-    );
-    const json = await res.json();
-    if (!json.routes?.length) return null;
-
-    const geom = json.routes[0].geometry;
-    return {
-      type: "Feature",
-      properties: {},
-      geometry: geom,
-    };
-  }
 
   async function drawMultipleRoutes(listOfCoordLists) {
     const map = mapRef.current;
@@ -330,7 +336,6 @@ export default function MainApp() {
         data: { type: "FeatureCollection", features: [] },
       });
 
-      // Define palettes for each glow level
       const innerColors = [
         "#fbb4ae",
         "#b3cde3",
@@ -437,20 +442,34 @@ export default function MainApp() {
     }
 
     // 2) Fetch all routes in parallel
-    const features = await Promise.all(
-      listOfCoordLists.map((coordsList, routeIndex) =>
-        getFinishedRoute(coordsList).then((feature) => {
-          if (feature) {
-            feature.properties = feature.properties || {};
-            feature.properties.routeIndex = routeIndex;
-          }
-          return feature;
-        })
-      )
+    const routes = await Promise.all(
+      listOfCoordLists.map(async (coordsList) => {
+        const coordString = coordsList.map((c) => `${c[0]},${c[1]}`).join(";");
+        const res = await fetch(
+          `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/` +
+            coordString +
+            `?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`
+        );
+        const json = await res.json();
+        if (!json.routes?.length) return null;
+
+        return {
+          type: "Feature",
+          properties: {},
+          geometry: json.routes[0].geometry,
+        };
+      })
     );
 
+    const validRoutes = routes
+      .filter(Boolean)
+      .map((feature) => feature.geometry.coordinates);
+
+    setFinalDriverPaths(validRoutes);
+    console.log(validRoutes);
+
     // 3) Update the line source
-    routesRef.current = features.filter((f) => f);
+    routesRef.current = routes.filter((f) => f);
     map.getSource("finished-route").setData({
       type: "FeatureCollection",
       features: routesRef.current,
