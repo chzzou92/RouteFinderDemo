@@ -105,8 +105,8 @@ const CarGrid = ({
                   setSelectedItem(dropOffKey);
                 }}
               >
-                <h2 className="font-bold text-black text-mid">
-                  {locationMap.get(dropOffKey)}
+                <h2 className="font-bold text-black text-sm">
+                  {shortenAddress(locationMap.get(dropOffKey))}
                 </h2>{" "}
               </div>
             ) : null}

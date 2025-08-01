@@ -1,15 +1,21 @@
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Car1Scene from "./Car1Scene";
 import { pass } from "three/tsl";
 import PassengerScene from "./PassengerScene";
+import ButtonGrid from "./ButtonGrid";
+import ErrorCard from "./ErrorCard";
+import { AnimatePresence, motion } from "framer-motion";
 
+import "./Landing.css";
 export default function Landing() {
   const navigate = useNavigate();
   const [passengerError, setPassengerError] = useState(0);
   const [drivers, setDrivers] = useState(1);
   const [driversError, setDriversError] = useState(0);
   const [passengers, setPassengers] = useState(1);
+
   const handleClick = () => {
     navigate("/route", {
       state: { passengers, drivers },
@@ -54,15 +60,52 @@ export default function Landing() {
       setDriversError(2);
     }
   };
+
+  const buttonConfig1 = [
+    {
+      className: "button1",
+      svgPath: "M200-440v-80h560v80H200Z",
+      onClick: subPassengers,
+    },
+    {
+      className: "button2",
+      svgPath: "M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z",
+      onClick: addPassengers,
+    },
+  ];
+
+  const buttonConfig2 = [
+    {
+      className: "button1",
+      svgPath: "M200-440v-80h560v80H200Z",
+      onClick: subDrivers,
+    },
+    {
+      className: "button2",
+      svgPath: "M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z",
+      onClick: addDrivers,
+    },
+  ];
+  const buttonConfig4 = [
+    {
+      className: "button3",
+      text: "NEXT",
+      onClick: handleClick,
+    },
+  ];
+  const buttonConfig3 = [
+    {
+      className: "button4",
+      text: "Default Route",
+      onClick: handleSkip,
+    },
+  ];
+
   return (
-    <div>
-      <div className="flex flex-col items-center justify-center space-y-4">
-        <h1 className="text-3xl font-bold center">Welcome to RouteFinder!</h1>
-        <h3 className="text-2xl font-bold">
-          To Use the App, first select the amount of Passengers and Drivers you
-          would like!
-        </h3>
-        <button onClick={handleSkip}>Default Route</button>
+    <div className="bg-container">
+      <div className="flex flex-col items-center justify-center p-4 space-y-4">
+        <h1 className="text-2xl font-bold center">Welcome to RouteFinder!</h1>
+        <ButtonGrid buttons={buttonConfig3} />
       </div>
       <div className="flex flex-row items-center justify-center">
         <PassengerScene />
@@ -74,42 +117,80 @@ export default function Landing() {
             {passengers} {passengers == 1 ? "Passenger" : "Passengers"}
           </h3>
           <div className="flex flex-row items-center justify-center space-x-4">
-            <button onClick={addPassengers}>+</button>
-            <button onClick={subPassengers}>-</button>
+            <ButtonGrid buttons={buttonConfig1} />
           </div>
-          {passengerError == 1 && (
-            <div className="text-red-600 bg-red-100 border border-red-400 p-2 rounded-md mt-2">
-              🚫 You've reached the maximum number of passengers!
-            </div>
-          )}
-          {passengerError == 2 && (
-            <div className="text-red-600 bg-red-100 border border-red-400 p-2 rounded-md mt-2">
-              🚫 Too little passengers!
-            </div>
-          )}
+                    <div className="w-40 h-15 flex flex-row items-center justify-center">
+            <AnimatePresence>
+              {passengerError == 1 && (
+                <motion.div
+                  key={passengerError}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ position: "relative" }}
+                >
+                  <ErrorCard type="too-many-passengers" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <AnimatePresence>
+              {passengerError == 2 && (
+                <motion.div
+                  key={passengerError}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ position: "relative" }}
+                >
+                  <ErrorCard type="no-passengers" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
         <div className="flex flex-col items-center justify-center space-y-4">
           <h3 className="text-2xl font-bold">
             {drivers} {drivers == 1 ? "Driver" : "Drivers"}
           </h3>
           <div className="flex flex-row items-center justify-center space-x-4">
-            <button onClick={addDrivers}>+</button>
-            <button onClick={subDrivers}>-</button>
+            <ButtonGrid buttons={buttonConfig2} />
           </div>
-          {driversError == 1 && (
-            <div className="text-red-600 bg-red-100 border border-red-400 p-2 rounded-md mt-2">
-              🚫 You've reached the maximum number of drivers!
-            </div>
-          )}
-          {driversError == 2 && (
-            <div className="text-red-600 bg-red-100 border border-red-400 p-2 rounded-md mt-2">
-              🚫 Too little drivers!
-            </div>
-          )}
+          <div className="w-40 h-15 flex flex-row items-center justify-center">
+            <AnimatePresence>
+              {driversError == 1 && (
+                <motion.div
+                  key={driversError}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ position: "relative" }}
+                >
+                  <ErrorCard type="too-many-drivers" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <AnimatePresence>
+              {driversError == 2 && (
+                <motion.div
+                  key={driversError}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ position: "relative" }}
+                >
+                  <ErrorCard type="no-drivers" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
-      <div className="flex flex-row items-center justify-center p-4">
-        <button onClick={handleClick}>Next</button>
+      <div className="flex flex-row items-center justify-center p-2">
+        <ButtonGrid buttons={buttonConfig4} />
       </div>
     </div>
   );
