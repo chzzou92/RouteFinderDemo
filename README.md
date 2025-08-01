@@ -1,6 +1,6 @@
 # Car and Passenger Routing Project
 
-![App Screenshot](frontend/frontend/public/images/app-screenshot.png)
+![App Screenshot](./frontend/frontend/public/images/app-screenshot.png)
 
 ## Overview
 
