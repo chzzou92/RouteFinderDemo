@@ -127,7 +127,7 @@ const StyledWrapper = styled.div`
   }
   .button4 {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     width: 6em;
     height: 3.7em;

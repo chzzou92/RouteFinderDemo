@@ -19,6 +19,9 @@ const ErrorCard = ({ type }) => {
     case "invalid-route":
       message = "Could not find a valid route";
       break;
+    case "missing-locations":
+      message = "Missing locations";
+      break;
     default:
       message = "An unknown error occurred";
   }
@@ -47,7 +50,6 @@ const ErrorCard = ({ type }) => {
             <p className="text-gray-500">{message}</p>
           </div>
         </div>
-
       </div>
     </div>
   );

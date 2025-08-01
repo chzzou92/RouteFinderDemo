@@ -7,8 +7,8 @@ import PassengerScene from "./PassengerScene";
 import ButtonGrid from "./ButtonGrid";
 import ErrorCard from "./ErrorCard";
 import { AnimatePresence, motion } from "framer-motion";
-
 import "./Landing.css";
+
 export default function Landing() {
   const navigate = useNavigate();
   const [passengerError, setPassengerError] = useState(0);

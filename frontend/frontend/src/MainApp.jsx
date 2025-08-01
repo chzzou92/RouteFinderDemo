@@ -102,7 +102,7 @@ export default function MainApp() {
     [40.4174, -74.4927],
     [40.47876, -74.37787],
     [40.487974, -74.462616],
-    [40.615775, -74.469859]
+    [40.615775, -74.469859],
   ];
 
   const carTransforms = createCarModelTransforms(
@@ -177,8 +177,10 @@ export default function MainApp() {
   const handleBack = () => {
     navigate("/route", {
       state: {
-        drivers: numDrivers,
-        passengers: numPassengers,
+        drivers: driversMap ? numDrivers : defaultDrivers.length,
+        passengers: passengersMap ? numPassengers : defaultPassengers.length,
+        driversMap: driversMap ? driversMap : defaultDrivers,
+        passengersMap: passengersMap ? passengersMap : defaultPassengers
       },
     });
   };
@@ -223,12 +225,12 @@ export default function MainApp() {
   //     modelTransform.translateZ = merc.z;
   //   }
   // };
-  // const resetMapPosition = () => {
-  //   mapRef.current.flyTo({
-  //     center: INITIAL_CENTER,
-  //     zoom: INITIAL_ZOOM,
-  //   });
-  // };
+  const resetMapPosition = () => {
+    mapRef.current.flyTo({
+      center: INITIAL_CENTER,
+      zoom: INITIAL_ZOOM,
+    });
+  };
 
   const addMarker = (lng, lat, color) => {
     const Marker = new mapboxgl.Marker({ color })
@@ -289,7 +291,7 @@ export default function MainApp() {
 
   useEffect(() => {
     if (loadComplete) {
-      if (driversMap) {
+      if (driversMap && passengersMap) {
         loadPassengers(driversMap, passengersMap);
       } else {
         loadPassengers(defaultDrivers, defaultPassengers);
@@ -610,7 +612,7 @@ export default function MainApp() {
         onClick={() => {
           resetPaths();
           resetMapPosition();
-          resetCar();
+          //  resetCar();
         }}
       >
         Reset

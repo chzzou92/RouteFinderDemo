@@ -3,9 +3,12 @@ import { useState, useEffect, useRef } from "react";
 import CarGrid from "./CarGrid";
 import MapSearch from "./MapSearch";
 import { useNavigate } from "react-router-dom";
+import ButtonGrid from "./ButtonGrid";
+import { AnimatePresence, motion } from "framer-motion";
+import ErrorCard from "./ErrorCard";
 export default function GetRoute() {
   const { state } = useLocation();
-  const { drivers, passengers } = state || {};
+  const { drivers, passengers, driversMap, passengersMap } = state || {};
   const [selectedItem, setSelectedItem] = useState("Passenger-0-pickup");
   const navigate = useNavigate();
   const [location, getLocation] = useState(null);
@@ -61,7 +64,8 @@ export default function GetRoute() {
   }, [selectedCords]);
 
   useEffect(() => {
-    logMaps();
+    console.log(driversMap);
+    console.log(passengersMap);
   });
 
   const handleBack = () => {
@@ -84,11 +88,26 @@ export default function GetRoute() {
       setLocationsError(true);
     }
   };
-
+  const buttonConfig1 = [
+    {
+      className: "button3",
+      text: "NEXT",
+      onClick: handleNext,
+    },
+  ];
+  const buttonConfig2 = [
+    {
+      className: "button4",
+      text: "BACK",
+      onClick: handleBack,
+    },
+  ];
   return (
-    <div className="flex flex-col justify-center items-center space-y-4">
-      <h1 className="text-3xl font-bold">Info: </h1>
-      <MapSearch loc={getLocation} cords={setSelectedCords} />
+    <div className="bg-container h-full w-full overflow-y-auto flex flex-col justify-center items-center space-y-4">
+      <div className="flex flex-col justify-center items-center">
+        <h1 className="text-3xl font-bold">Info: </h1>
+        <MapSearch loc={getLocation} cords={setSelectedCords} />
+      </div>
       <div className="flex flex-row justify-center items-center space-x-12">
         <CarGrid
           count={passengers}
@@ -110,15 +129,26 @@ export default function GetRoute() {
         />
       </div>
       <div className="flex flex-col justify-center items-center space-y-4">
-        <div className="flex flex-row justify-center items-center space-x-12">
-          <button onClick={handleBack}>Back</button>
-          <button onClick={handleNext}>Next</button>
+        <div className="flex flex-row justify-center items-center space-x-12 p-4">
+          <ButtonGrid buttons={buttonConfig2} />
+          <ButtonGrid buttons={buttonConfig1} />
         </div>
-        {locationsError && (
-          <div className="text-red-600 bg-red-100 border border-red-400 p-2 rounded-md mt-2">
-            🚫 Missing Locations!
-          </div>
-        )}
+        <div className="h-20">
+        <AnimatePresence>
+              {locationsError && (
+                <motion.div
+                  key={locationsError}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ position: "relative" }}
+                >
+                  <ErrorCard type="missing-locations" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+        </div>
       </div>
     </div>
   );
