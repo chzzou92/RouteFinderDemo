@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import ButtonGrid from "./ButtonGrid";
 import { AnimatePresence, motion } from "framer-motion";
 import ErrorCard from "./ErrorCard";
+import { shortenAddress } from "./shortenAddress";
 export default function GetRoute() {
   const { state } = useLocation();
   const { drivers, passengers, driversMap, passengersMap } = state || {};
@@ -15,6 +16,9 @@ export default function GetRoute() {
   const [locationsFilled, setLocationsFilled] = useState(0);
   const [locationsError, setLocationsError] = useState(false);
   const [selectedCords, setSelectedCords] = useState([]);
+  const [driverAddressMap, setDriverAddressMap] = useState(new Map());
+  const [passengerAddressMap, setPassengerAddressMap] = useState(new Map());
+
   const capacity = drivers + passengers * 2;
   let driversMapRef = useRef(Array.from({ length: drivers }, () => null));
   let passengersMapRef = useRef(
@@ -62,11 +66,66 @@ export default function GetRoute() {
       addCord(selectedItem, selectedCords);
     }
   }, [selectedCords]);
-
   useEffect(() => {
-    console.log(driversMap);
-    console.log(passengersMap);
+    console.log(driversMapRef.current);
+    console.log(passengersMapRef.current);
   });
+  useEffect(() => {
+    async function populateFromPassedMaps() {
+      let filled = 0;
+
+      const newDriverMap = new Map();
+      const newPassengerMap = new Map();
+
+      // For drivers
+      for (let i = 0; i < driversMap.length; i++) {
+        const cords = driversMap[i];
+        if (cords?.length === 2) {
+          try {
+            const address = await getAddressFromCoords(cords[0], cords[1]);
+            newDriverMap.set(`Driver-${i}-pickup`, shortenAddress(address));
+            driversMapRef.current[i] = cords;
+          } catch (e) {
+            console.error("Driver address fetch failed", e);
+          }
+        }
+      }
+
+      // For passengers
+      for (let i = 0; i < passengersMap.length; i++) {
+        const [pickup, dropoff] = passengersMap[i] || [];
+
+        if (pickup?.length === 2) {
+          try {
+            const address = await getAddressFromCoords(pickup[0], pickup[1]);
+            newPassengerMap.set(
+              `Passenger-${i}-pickup`,
+              shortenAddress(address)
+            );
+            if (!passengersMapRef.current[i]) passengersMapRef.current[i] = [];
+            passengersMapRef.current[i][0] = pickup;
+          } catch (e) {
+            console.error("Pickup address fetch failed", e);
+          }
+        }
+
+        if (dropoff?.length === 2) {
+          try {
+            const address = await getAddressFromCoords(dropoff[0], dropoff[1]);
+            newPassengerMap.set(`Passenger-${i}-dropoff`, address);
+            if (!passengersMapRef.current[i]) passengersMapRef.current[i] = [];
+            passengersMapRef.current[i][1] = dropoff;
+          } catch (e) {
+            console.error("Dropoff address fetch failed", e);
+          }
+        }
+      }
+      setLocationsFilled(capacity + 1);
+      setPassengerAddressMap(newPassengerMap);
+      setDriverAddressMap(newDriverMap);
+    }
+    populateFromPassedMaps();
+  }, []);
 
   const handleBack = () => {
     navigate("/");
@@ -102,6 +161,20 @@ export default function GetRoute() {
       onClick: handleBack,
     },
   ];
+  async function getAddressFromCoords(lat, lng) {
+    const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`
+    );
+
+    const data = await res.json();
+    if (data.status === "OK") {
+      return data.results[0].formatted_address;
+    } else {
+      throw new Error("Geocoding failed: " + data.status);
+    }
+  }
+
   return (
     <div className="bg-container h-full w-full overflow-y-auto flex flex-col justify-center items-center space-y-4">
       <div className="flex flex-col justify-center items-center">
@@ -117,6 +190,8 @@ export default function GetRoute() {
           setSelectedItem={setSelectedItem}
           setLocationsFilled={setLocationsFilled}
           cap={capacity}
+          initialLocationsMap={new Map()}
+          prefillLocationMap={passengerAddressMap}
         />
         <CarGrid
           count={drivers}
@@ -126,6 +201,8 @@ export default function GetRoute() {
           setSelectedItem={setSelectedItem}
           setLocationsFilled={setLocationsFilled}
           cap={capacity}
+          initialLocationsMap={new Map()}
+          prefillLocationMap={driverAddressMap}
         />
       </div>
       <div className="flex flex-col justify-center items-center space-y-4">
@@ -134,20 +211,20 @@ export default function GetRoute() {
           <ButtonGrid buttons={buttonConfig1} />
         </div>
         <div className="h-20">
-        <AnimatePresence>
-              {locationsError && (
-                <motion.div
-                  key={locationsError}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  style={{ position: "relative" }}
-                >
-                  <ErrorCard type="missing-locations" />
-                </motion.div>
-              )}
-            </AnimatePresence>
+          <AnimatePresence>
+            {locationsError && (
+              <motion.div
+                key={locationsError}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ position: "relative" }}
+              >
+                <ErrorCard type="missing-locations" />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

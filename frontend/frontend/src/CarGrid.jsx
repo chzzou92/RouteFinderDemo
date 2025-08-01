@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { assign } from "three/tsl";
 import RightArrow from "./assets/rightArrow";
+import { shortenAddress } from "./shortenAddress";
 const CarGrid = ({
   count = 0,
   type = "Car",
@@ -8,34 +9,25 @@ const CarGrid = ({
   setSelectedItem,
   selectedLocation,
   setLocationsFilled,
+  initialLocationsMap = new Map(),
+  prefillLocationMap = null,
 }) => {
   const items = Array.from({ length: count }, (_, i) => `${type} ${i + 1}`);
 
-  const locations = new Map();
-  items.forEach((x) => {
-    locations.set(x, "");
-  });
-  const lastAssignedLocationRef = useRef(null);
-  const [locationMap, setLocationMap] = useState(locations);
+  const initialMap = new Map();
+  for (let i = 0; i < count; i++) {
+    const pickupKey = `${type}-${i}-pickup`;
+    const dropOffKey = `${type}-${i}-dropoff`;
 
-  function shortenAddress(address) {
-    if (!address || typeof address !== "string") return "";
-    const parts = address.split(",").map((p) => p.trim());
+    initialMap.set(pickupKey, initialLocationsMap.get(pickupKey) || "");
 
-    if (parts.length >= 3) {
-      const name = parts[0];
-      const words = name.split(" ");
-
-      // Use full name if short, or first 3 words if longer
-      const shortFirst = name.length <= 25 ? name : words.slice(0, 3).join(" ");
-
-      return `${shortFirst}, ${parts[1]}, ${parts[2]}`;
-    } else if (parts.length === 2) {
-      return `${parts[0]}, ${parts[1]}`;
-    } else {
-      return address;
+    if (type === "Passenger") {
+      initialMap.set(dropOffKey, initialLocationsMap.get(dropOffKey) || "");
     }
   }
+  const [locationMap, setLocationMap] = useState(initialMap);
+
+  const lastAssignedLocationRef = useRef(null);
 
   useEffect(() => {
     if (
@@ -52,6 +44,12 @@ const CarGrid = ({
       lastAssignedLocationRef.current = selectedLocation;
     }
   }, [selectedItem, selectedLocation]);
+
+  useEffect(() => {
+    if (prefillLocationMap && prefillLocationMap.size > 0) {
+      setLocationMap(new Map(prefillLocationMap));
+    }
+  }, [prefillLocationMap]);
 
   const updateLocation = (key, newLocation) => {
     setLocationMap((prev) => {

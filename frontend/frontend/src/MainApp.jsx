@@ -106,7 +106,7 @@ export default function MainApp() {
   ];
 
   const carTransforms = createCarModelTransforms(
-    defaultDrivers.map(([lat, lng]) => [lng, lat])
+    driversMap ? driversMap.map(([lat,lng]) => [lng, lat]) : defaultDrivers.map(([lat, lng]) => [lng, lat])
   );
 
   const defaultPassengers = [
@@ -180,7 +180,7 @@ export default function MainApp() {
         drivers: driversMap ? numDrivers : defaultDrivers.length,
         passengers: passengersMap ? numPassengers : defaultPassengers.length,
         driversMap: driversMap ? driversMap : defaultDrivers,
-        passengersMap: passengersMap ? passengersMap : defaultPassengers
+        passengersMap: passengersMap ? passengersMap : defaultPassengers,
       },
     });
   };
@@ -427,17 +427,7 @@ export default function MainApp() {
           "text-anchor": "bottom",
         },
         paint: {
-          "text-color": [
-            "match",
-            ["get", "routeIndex"],
-            0,
-            coreColors[0],
-            1,
-            coreColors[1],
-            2,
-            coreColors[2],
-            /*…*/ coreColors[0],
-          ],
+          "text-color": makeMatch(coreColors),
         },
       });
 
