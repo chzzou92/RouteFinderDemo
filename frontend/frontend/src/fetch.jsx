@@ -24,7 +24,7 @@ function SendData({ setFetchData, drivers, passengers, drawMultipleRoutes }) {
       setError(false);
       console.log(JSON.stringify(payload));
       const res = await fetch(
-        "http://crow-alb-847030846.us-east-2.elb.amazonaws.com/",
+        "https://d2belp92pleacm.cloudfront.net/",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
