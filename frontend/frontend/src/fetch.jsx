@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Loader from "./Loader";
 import TimeButton from "./TimeButton";
-import "./Fetch.css";
+import "./fetch.css";
 
 function SendData({ setFetchData, drivers, passengers, drawMultipleRoutes }) {
   const [loading, setLoading] = useState(false);

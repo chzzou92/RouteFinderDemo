@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { assign } from "three/tsl";
-import RightArrow from "./assets/rightArrow";
+import RightArrow from "./assets/RightArrow";
 import { shortenAddress } from "./shortenAddress";
 const CarGrid = ({
   count = 0,
