@@ -3,6 +3,7 @@
     "asio",
     "crow",
     "openssl",
-    "zlib"
+    "zlib",
+    "curl"
   ]
 }

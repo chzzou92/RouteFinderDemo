@@ -22,13 +22,18 @@ function SendData({ setFetchData, drivers, passengers, drawMultipleRoutes }) {
     try {
       setSuccess(false);
       setError(false);
-      const res = await fetch("http://0.0.0.0:8000/get-data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      console.log(JSON.stringify(payload));
+      const res = await fetch(
+        "http://crow-alb-847030846.us-east-2.elb.amazonaws.com/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
 
       const data = await res.json();
+      console.log("Routing results:", data);
 
       if (!res.ok) {
         setError(true);
@@ -36,10 +41,10 @@ function SendData({ setFetchData, drivers, passengers, drawMultipleRoutes }) {
       }
 
       console.log("Success", data);
-     // const totalTime = data.paths.reduce((sum,p) => sum + p.shortestTime, 0);
-      const maxTime = Math.max(...data.paths.map(p => p.shortestTime));
+      // const totalTime = data.paths.reduce((sum,p) => sum + p.shortestTime, 0);
+      const maxTime = Math.max(...data.paths.map((p) => p.shortestTime));
       setFastestTime(maxTime);
-      const coordLists = data.paths.map(p => p.path);
+      const coordLists = data.paths.map((p) => p.path);
       drawMultipleRoutes(coordLists);
     } catch (err) {
       console.error("Caught fetch error:", err);

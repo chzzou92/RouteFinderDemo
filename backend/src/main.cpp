@@ -10,27 +10,38 @@
 #include <curl/curl.h>
 #include <future>
 #include "utils/Utils.hpp"
-#include "env.h"
+// #include "env.h"
 
-const std::string token = GOOGLE_API_KEY;
+// const std::string token = GOOGLE_API_KEY;
 
-struct Coord {
+struct Coord
+{
     double lat, lng;
-    enum class Role {Driver, PassengerSrc, PassengerDst} role;
-    bool operator==(Coord const& o) const {
+    enum class Role
+    {
+        Driver,
+        PassengerSrc,
+        PassengerDst
+    } role;
+    bool operator==(Coord const &o) const
+    {
         return lat == o.lat && lng == o.lng && role == o.role;
     }
 };
-struct CoordHash {
-    std::size_t operator()(Coord const& c) const noexcept {
+struct CoordHash
+{
+    std::size_t operator()(Coord const &c) const noexcept
+    {
         size_t h1 = std::hash<double>()(c.lat);
         size_t h2 = std::hash<double>()(c.lng);
         size_t h3 = std::hash<int>()(static_cast<int>(c.role));
         return h1 ^ (h2 << 1) ^ (h3 << 2);
     }
 };
-struct PairCoordHash {
-    std::size_t operator()(std::pair<Coord, Coord> const& p) const noexcept {
+struct PairCoordHash
+{
+    std::size_t operator()(std::pair<Coord, Coord> const &p) const noexcept
+    {
         // Reuse CoordHash on each element
         CoordHash ch;
         std::size_t h1 = ch(p.first);
@@ -40,32 +51,39 @@ struct PairCoordHash {
     }
 };
 
-struct nodeHash {
-    std::size_t operator()(const std::pair<int, int>& p) const {
+struct nodeHash
+{
+    std::size_t operator()(const std::pair<int, int> &p) const
+    {
         return std::hash<int>{}(p.first) ^ (std::hash<int>{}(p.second) << 1);
     }
 };
 
-struct PathHash {
-    std::size_t operator()(const std::pair<int, std::vector<int>>& p) const {
+struct PathHash
+{
+    std::size_t operator()(const std::pair<int, std::vector<int>> &p) const
+    {
         std::size_t seed = std::hash<int>{}(p.first);
-        for (int v : p.second) {
+        for (int v : p.second)
+        {
             seed ^= std::hash<int>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         }
         return seed;
     }
 };
 
-struct PathEqual {
-    bool operator()(const std::pair<int, std::vector<int>>& a,
-                    const std::pair<int, std::vector<int>>& b) const {
+struct PathEqual
+{
+    bool operator()(const std::pair<int, std::vector<int>> &a,
+                    const std::pair<int, std::vector<int>> &b) const
+    {
         return a.first == b.first && a.second == b.second;
     }
 };
 
-
-struct RoutingContext{
-    std::unordered_map<std::pair<int, int>, int, nodeHash> storedTimes; 
+struct RoutingContext
+{
+    std::unordered_map<std::pair<int, int>, int, nodeHash> storedTimes;
     int numOfDrivers;
     int numOfPassengerSources;
     int numOfPassengerDest;
@@ -74,49 +92,56 @@ struct RoutingContext{
     std::unordered_set<int> sourceSet;
     std::unordered_set<int> destSet;
     std::vector<Coord> nodes;
-
 };
-//helper to print roles
-std::string roleToString(Coord::Role role) {
-    switch (role) {
-        case Coord::Role::Driver: return "Driver";
-        case Coord::Role::PassengerSrc: return "PassengerSrc";
-        case Coord::Role::PassengerDst: return "PassengerDst";
-        default: return "Unknown";
+// helper to print roles
+std::string roleToString(Coord::Role role)
+{
+    switch (role)
+    {
+    case Coord::Role::Driver:
+        return "Driver";
+    case Coord::Role::PassengerSrc:
+        return "PassengerSrc";
+    case Coord::Role::PassengerDst:
+        return "PassengerDst";
+    default:
+        return "Unknown";
     }
 }
 // A small helper to capture libcurl’s response into a std::string
-static size_t _curlWrite(void* buf, size_t size, size_t nmemb, void* up) {
-    std::string* resp = static_cast<std::string*>(up);
-    resp->append(static_cast<char*>(buf), size * nmemb);
+static size_t _curlWrite(void *buf, size_t size, size_t nmemb, void *up)
+{
+    std::string *resp = static_cast<std::string *>(up);
+    resp->append(static_cast<char *>(buf), size * nmemb);
     return size * nmemb;
 }
 
 //  Simple HTTP GET (you already had this):
-std::string httpGet(const std::string& url) {
-    CURL* curl = curl_easy_init();
+std::string httpGet(const std::string &url)
+{
+    CURL *curl = curl_easy_init();
     std::string response;
-    curl_easy_setopt(curl, CURLOPT_URL,           url.c_str());
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _curlWrite);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA,     &response);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_perform(curl);
     curl_easy_cleanup(curl);
     return response;
 }
 
-
 // HTTP POST that sends a JSON body & returns the response body as a string
-std::string httpPost(const std::string& url, const std::string& jsonBody) {
-    CURL* curl = curl_easy_init();
+std::string httpPost(const std::string &url, const std::string &jsonBody)
+{
+    CURL *curl = curl_easy_init();
     std::string response;
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonBody.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _curlWrite);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA,     &response);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 
-    struct curl_slist* headers = nullptr;
+    struct curl_slist *headers = nullptr;
     headers = curl_slist_append(headers, "Content-Type: application/json");
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
@@ -127,15 +152,22 @@ std::string httpPost(const std::string& url, const std::string& jsonBody) {
     return response;
 }
 
-
-//  getTime uses Google’s Routes API 
-int getTime(const Coord& start, const Coord& end) {
+// should be in a sep file
+//   getTime uses Google’s Routes API
+int getTime(const Coord &start, const Coord &end)
+{
     // 1) Build the Distance Matrix GET URL
+    const char *key = std::getenv("GOOGLE_API_KEY");
+    if (!key)
+    {
+        std::cerr << "Missing GOOGLE_API_KEY env variable!" << std::endl;
+        std::exit(1);
+    }
     std::ostringstream qs;
     qs << "https://maps.googleapis.com/maps/api/distancematrix/json"
-        << "?destinations=" << end.lat << "%2C" << end.lng
-       << "&origins=" << start.lat  << "%2C" << start.lng
-       << "&key=" << GOOGLE_API_KEY;
+       << "?destinations=" << end.lat << "%2C" << end.lng
+       << "&origins=" << start.lat << "%2C" << start.lng
+       << "&key=" << key;
 
     std::string url = qs.str();
 
@@ -144,38 +176,45 @@ int getTime(const Coord& start, const Coord& end) {
 
     // 3) Parse JSON with Crow
     auto j = crow::json::load(body);
-    if (!j) {
+    if (!j)
+    {
         throw std::runtime_error("Invalid JSON from Google Distance Matrix.");
     }
     // 4) Check top‐level status
-    if (!j.has("status") || j["status"].s() != "OK") {
+    if (!j.has("status") || j["status"].s() != "OK")
+    {
         std::ostringstream err;
         err << "Distance Matrix API status: "
             << (j.has("status") ? j["status"].s() : std::string("MISSING"))
-            << "\nFull JSON:\n" << j;
+            << "\nFull JSON:\n"
+            << j;
         throw std::runtime_error(err.str());
     }
 
     // 5) Drill down: rows → elements
     if (!j.has("rows") ||
         !j["rows"][0].has("elements") ||
-        !j["rows"][0]["elements"][0].has("status")) {
+        !j["rows"][0]["elements"][0].has("status"))
+    {
         std::ostringstream err;
         err << "Unexpected JSON structure (missing rows/elements/status). Full JSON:\n"
             << j;
         throw std::runtime_error(err.str());
     }
 
-    auto& elem = j["rows"][0]["elements"][0];
-    if (elem["status"].s() != "OK") {
+    auto &elem = j["rows"][0]["elements"][0];
+    if (elem["status"].s() != "OK")
+    {
         std::ostringstream err;
         err << "No route found (element.status=" << elem["status"].s() << ").\n"
-            << "Full element JSON:\n" << elem;
+            << "Full element JSON:\n"
+            << elem;
         throw std::runtime_error(err.str());
     }
 
     // 6) Extract duration.value (seconds)
-    if (!elem.has("duration") || !elem["duration"].has("value")) {
+    if (!elem.has("duration") || !elem["duration"].has("value"))
+    {
         throw std::runtime_error("Missing duration.value in JSON element.");
     }
     int seconds = elem["duration"]["value"].i();
@@ -185,71 +224,95 @@ int getTime(const Coord& start, const Coord& end) {
     return minutes;
 }
 
-
-std::pair<int, std::vector<int>> findRoute(std::vector<std::vector<int>>& adj, int maxNodes, int driverIdx, RoutingContext& ctx) {
+// another file
+std::pair<int, std::vector<int>> findRoute(std::vector<std::vector<int>> &adj, int maxNodes, int driverIdx, RoutingContext &ctx)
+{
     using namespace std;
-    // time, node, visited set, and path 
+    // time, node, visited set, and path
     using nodeType = tuple<int, int, unordered_set<int>, vector<int>, int>;
-    
-    auto cmp = [] (nodeType& a, nodeType& b) -> bool {
-        return get<0>(a) > get<0>(b); 
+
+    auto cmp = [](nodeType &a, nodeType &b) -> bool
+    {
+        return get<0>(a) > get<0>(b);
     };
 
     priority_queue<nodeType, vector<nodeType>, decltype(cmp)> q(cmp);
-  //  unordered_map<pair<int, int>, int, nodeHash> storedTimes; 
+    //  unordered_map<pair<int, int>, int, nodeHash> storedTimes;
 
-    q.push({0, driverIdx, unordered_set<int>(), vector<int>(1, driverIdx), 0}); 
-    while (!q.empty()) {
+    q.push({0, driverIdx, unordered_set<int>(), vector<int>(1, driverIdx), 0});
+    while (!q.empty())
+    {
         auto [cTime, cNode, cSet, cPath, cInCar] = q.top();
         q.pop();
 
-        for (auto neighbor : adj[cNode]) {
-            if (ctx.sourceSet.count(neighbor) && cInCar == 4) continue;
-            if (cSet.count(neighbor)) continue; 
-            if (ctx.destSet.count(neighbor) && !cSet.count(ctx.destToSource[neighbor])) continue; 
-            if (!ctx.storedTimes.count({cNode, neighbor})) {
+        for (auto neighbor : adj[cNode])
+        {
+            if (ctx.sourceSet.count(neighbor) && cInCar == 4)
+                continue;
+            if (cSet.count(neighbor))
+                continue;
+            if (ctx.destSet.count(neighbor) && !cSet.count(ctx.destToSource[neighbor]))
+                continue;
+            if (!ctx.storedTimes.count({cNode, neighbor}))
+            {
                 ctx.storedTimes[{cNode, neighbor}] = getTime(ctx.nodes[cNode], ctx.nodes[neighbor]);
             }
 
-            if (ctx.destSet.count(neighbor)){
+            if (ctx.destSet.count(neighbor))
+            {
                 cInCar -= 1;
-            } else{
+            }
+            else
+            {
                 cInCar += 1;
             }
-            int newTime = cTime; auto newSet = cSet; auto newPath = cPath; 
+            int newTime = cTime;
+            auto newSet = cSet;
+            auto newPath = cPath;
             // Add time to neighbor onto current time
             newTime += ctx.storedTimes[{cNode, neighbor}];
-            // Add neighbor to visited nodes + onto path 
-            newSet.insert(neighbor); newPath.push_back(neighbor);
+            // Add neighbor to visited nodes + onto path
+            newSet.insert(neighbor);
+            newPath.push_back(neighbor);
             // End BFS if all passengers have been dropped
-            if (newSet.size() >= maxNodes) return {newTime, newPath}; 
+            if (newSet.size() >= maxNodes)
+                return {newTime, newPath};
 
             q.push({newTime, neighbor, newSet, newPath, cInCar});
         }
     }
-    for (const auto& pair: ctx.storedTimes){
+    for (const auto &pair : ctx.storedTimes)
+    {
         std::cout << "(" << pair.first.first << ", " << pair.first.second << ") => " << pair.second << "\n";
     }
     return {-1, {}};
 }
-
-std::unordered_map<int, std::vector<int>> decipherRoutes(RoutingContext& ctx ){
+// another file
+std::unordered_map<int, std::vector<int>> decipherRoutes(RoutingContext &ctx)
+{
     std::cout << "[INFO] Entered decipherRoutes()\n";
-    if (ctx.numOfDrivers == 1){
+    if (ctx.numOfDrivers == 1)
+    {
         return {};
     }
-    //storedTimes Driver -> source
-    for (int i = 0; i < ctx.numOfDrivers; i++){
-        for (int source : ctx.sourceSet){
-            if (!ctx.storedTimes.count({i, source})){
+    // storedTimes Driver -> source
+    for (int i = 0; i < ctx.numOfDrivers; i++)
+    {
+        for (int source : ctx.sourceSet)
+        {
+            if (!ctx.storedTimes.count({i, source}))
+            {
                 ctx.storedTimes[{i, source}] = getTime(ctx.nodes[i], ctx.nodes[source]);
             }
         }
     }
-    //storedTimes source -> dest
-    for (int source : ctx.sourceSet){
-        for (int dest : ctx.destSet){
-            if (!ctx.storedTimes.count({source, dest})){
+    // storedTimes source -> dest
+    for (int source : ctx.sourceSet)
+    {
+        for (int dest : ctx.destSet)
+        {
+            if (!ctx.storedTimes.count({source, dest}))
+            {
                 ctx.storedTimes[{source, dest}] = getTime(ctx.nodes[source], ctx.nodes[dest]);
             }
         }
@@ -261,11 +324,13 @@ std::unordered_map<int, std::vector<int>> decipherRoutes(RoutingContext& ctx ){
     // }
     // std::cout << "--------------------------------\n";
 
-    //create Costmap, from passenger -> array of costs to take Driver X [driver index X, cost]
-    std::unordered_map<int, std::vector<std::pair<int,int>>> costMap;
-    for (int source : ctx.sourceSet){
+    // create Costmap, from passenger -> array of costs to take Driver X [driver index X, cost]
+    std::unordered_map<int, std::vector<std::pair<int, int>>> costMap;
+    for (int source : ctx.sourceSet)
+    {
         std::vector<std::pair<int, int>> driverCosts;
-        for (int i = 0; i < ctx.numOfDrivers; i++){
+        for (int i = 0; i < ctx.numOfDrivers; i++)
+        {
             int toSrc = ctx.storedTimes[{i, source}];
             int toDst = ctx.storedTimes[{source, ctx.sourceToDest[source]}];
             int totalCost = toSrc + toDst;
@@ -275,55 +340,67 @@ std::unordered_map<int, std::vector<int>> decipherRoutes(RoutingContext& ctx ){
     }
 
     std::cout << "Cost Map (passenger source -> [(driver, cost)]):\n";
-    for (const auto& [source, drivers] : costMap) {
+    for (const auto &[source, drivers] : costMap)
+    {
         std::cout << "Passenger " << source << ": ";
-        for (const auto& [driverIdx, cost] : drivers) {
+        for (const auto &[driverIdx, cost] : drivers)
+        {
             std::cout << "(" << driverIdx << ", " << cost << ") ";
         }
         std::cout << "\n";
     }
     std::cout << "--------------------------------\n";
 
-    //delegate drivers
-    // res from driver -> array of passengers
+    // delegate drivers
+    //  res from driver -> array of passengers
     std::unordered_map<int, std::vector<int>> res;
     std::unordered_set<int> assignedSources;
-    //assign each driver the route that has the lowest cost for them 
-    //so that each driver has at least one route 
-    for (int driver = 0; driver < ctx.numOfDrivers; ++ driver){
+    // assign each driver the route that has the lowest cost for them
+    // so that each driver has at least one route
+    for (int driver = 0; driver < ctx.numOfDrivers; ++driver)
+    {
         int bestSource = -1;
         int bestCost = INT_MAX;
 
-        for (const auto& [source, drivers] : costMap){
-            if (assignedSources.count(source)) continue;
-            
+        for (const auto &[source, drivers] : costMap)
+        {
+            if (assignedSources.count(source))
+                continue;
+
             int cost = drivers[driver].second;
-            if (cost < bestCost) {
+            if (cost < bestCost)
+            {
                 bestCost = cost;
                 bestSource = source;
             }
         }
-        if (bestSource != -1){
+        if (bestSource != -1)
+        {
             res[driver].push_back(bestSource);
             assignedSources.insert(bestSource);
         }
     }
-    //assign the rest 
-    for (const auto& [source, drivers] : costMap){
-        if (assignedSources.count(source)) continue;
+    // assign the rest
+    for (const auto &[source, drivers] : costMap)
+    {
+        if (assignedSources.count(source))
+            continue;
         auto best = std::min_element(drivers.begin(), drivers.end(),
-        [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
-        return a.second < b.second;
-    });
+                                     [](const std::pair<int, int> &a, const std::pair<int, int> &b)
+                                     {
+                                         return a.second < b.second;
+                                     });
         int bestDriver = best->first;
         res[bestDriver].push_back(source);
         assignedSources.insert(source);
     }
 
     std::cout << "Driver Assignments (driver -> [passenger sources]):\n";
-    for (const auto& [driver, passengers] : res) {
+    for (const auto &[driver, passengers] : res)
+    {
         std::cout << "Driver " << driver << ": ";
-        for (int p : passengers) {
+        for (int p : passengers)
+        {
             std::cout << p << " ";
         }
         std::cout << "\n";
@@ -338,11 +415,37 @@ int main()
     const auto PORT = std::stoi(Utils::GetEnv("PORT", "8000"));
 
     crow::App<crow::CORSHandler> app;
-    
-    CROW_ROUTE(app, "/get-data").methods("POST"_method)(
-        [](const crow::request& req){
-            std::cout << "Raw POST body: " << req.body << "\n";
+    auto &cors = app.get_middleware<crow::CORSHandler>();
 
+    cors.global()
+        .origin("*") // frontend host
+        .headers(
+            "Accept",
+            "Origin",
+            "Content-Type",
+            "Authorization",
+            "Refresh")
+        .methods(
+            crow::HTTPMethod::GET,
+            crow::HTTPMethod::POST,
+            crow::HTTPMethod::OPTIONS,
+            crow::HTTPMethod::HEAD,
+            crow::HTTPMethod::PUT,
+            crow::HTTPMethod::DELETE);
+
+    CROW_ROUTE(app, "/get-data").methods(crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)([](const crow::request &req)
+                                                                                            {
+        // Handle preflight OPTIONS request
+    if (req.method == crow::HTTPMethod::Options) {
+        crow::response res(200);
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+        res.set_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        res.set_header("Access-Control-Max-Age", "86400");
+        return res;
+    }
+    std::cout << "Raw POST body: " << req.body << "\n";
+    
     // parse JSON 
     auto j = crow::json::load(req.body);
     if (!j) {
@@ -635,10 +738,47 @@ int main()
     }
 
     crow::response res(data);
-    res.set_header("Content-Type", "application/json");
-    return res;
-    });
-    app.port(PORT).multithreaded().run();
+    return res; });
+    // Health check endpoint for ALB
+    CROW_ROUTE(app, "/health").methods(crow::HTTPMethod::Get)([](const crow::request &req)
+                                                              {
+            crow::json::wvalue response;
+            response["status"] = "healthy";
+            response["timestamp"] = std::time(nullptr);
+            return crow::response(200, response); });
+
+    // Optional: Add a simple root endpoint
+    CROW_ROUTE(app, "/").methods(crow::HTTPMethod::Get)(
+        [](const crow::request &req)
+        {
+            return crow::response(200, "Crow Backend Server is running!");
+        });
+
+    CROW_ROUTE(app, "/").methods(crow::HTTPMethod::Post, crow::HTTPMethod::Options)(
+        [](const crow::request &req)
+        {
+            if (req.method == crow::HTTPMethod::Options)
+            {
+                crow::response res(200);
+                res.set_header("Access-Control-Allow-Origin", "*");
+                res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+                res.set_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+                res.set_header("Access-Control-Max-Age", "86400");
+                return res;
+            }
+            crow::json::wvalue data;
+            data["success"] = true;
+            data["message"] = req.body;
+            return crow::response(200, data);
+        });
+
+    CROW_CATCHALL_ROUTE(app)(
+        [](const crow::request &req)
+        {
+            return crow::response(200, "No route found.");
+        });
+
+    app.port(PORT).bindaddr("172.31.5.84").multithreaded().run();
 
     return 0;
 }

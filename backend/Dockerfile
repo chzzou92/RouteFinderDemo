@@ -10,9 +10,13 @@ RUN vcpkg install
 
 COPY . .
 
+
+
 RUN cmake -S . -B build \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-    -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+    -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+    --debug-output \
+    --trace-expand
 
 RUN cmake --build build --parallel $(nproc)
 

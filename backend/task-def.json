@@ -1,0 +1,29 @@
+{
+  "family": "crow-backend-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::118557105310:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "crow-backend-container",
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+            "awslogs-group": "/ecs/crow-backend",
+            "awslogs-region": "us-east-2",
+            "awslogs-stream-prefix": "ecs"
+        }
+        },
+      "image": "118557105310.dkr.ecr.us-east-2.amazonaws.com/crow-backend:latest",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true
+    }
+  ]
+}

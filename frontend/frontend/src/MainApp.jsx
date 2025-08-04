@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import mapboxgl from "mapbox-gl";
-import SendData from "./Fetch";
+import SendData from "./fetch";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./App.css";
 import { useNavigate } from "react-router-dom";
@@ -106,7 +106,9 @@ export default function MainApp() {
   ];
 
   const carTransforms = createCarModelTransforms(
-    driversMap ? driversMap.map(([lat,lng]) => [lng, lat]) : defaultDrivers.map(([lat, lng]) => [lng, lat])
+    driversMap
+      ? driversMap.map(([lat, lng]) => [lng, lat])
+      : defaultDrivers.map(([lat, lng]) => [lng, lat])
   );
 
   const defaultPassengers = [
