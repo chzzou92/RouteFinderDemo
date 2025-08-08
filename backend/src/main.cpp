@@ -444,7 +444,30 @@ int main()
                                                                                             {
         // Handle preflight OPTIONS request (CORS middleware should handle this automatically)
         if (req.method == crow::HTTPMethod::Options) {
-            crow::response res(200);
+crow::response res;
+            // Echo origin (safer than always "*")
+            auto origin = req.get_header_value("Origin");
+            if (origin.empty()) origin = "*";
+            res.add_header("Access-Control-Allow-Origin", origin);
+            // Tell caches to vary by Origin
+            res.add_header("Vary", "Origin");
+
+            // Allowed methods
+            res.add_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE, HEAD");
+
+            // Echo headers requested by the browser if present, otherwise supply list you expect
+            auto acrh = req.get_header_value("Access-Control-Request-Headers");
+            if (acrh.empty()) {
+                acrh = "Accept, Origin, Content-Type, Authorization, Refresh, X-Custom-Header, Upgrade-Insecure-Requests";
+            }
+            res.add_header("Access-Control-Allow-Headers", acrh);
+
+            // Optional:
+            res.add_header("Access-Control-Max-Age", "86400"); // 24 hours
+
+            // No body required for preflight — 204 is conventional
+            res.code = 204;
+            res.body = "";
             return res;
         }
         
