@@ -1,10 +1,15 @@
 services:
-  cpp-backend-template:
+  crow-backend:
     build:
       context: .
-    restart: unless-stopped
     ports:
-      - "${PORT}:${PORT}"
+      - "8000:8000"
+    develop:
+      watch:
+        - action: rebuild
+          path: .
     environment:
-      - PORT=${PORT}
-      - BUILD_TYPE=${BUILD_TYPE}
+      - PORT=8000
+      - BUILD_TYPE=Release
+      - GOOGLE_API_KEY=AIzaSyB9Gv3QO1XNNa4zdQI3Ynj8pfwt6Qn_D-w
+    

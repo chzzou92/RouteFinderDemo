@@ -1,5 +1,4 @@
-#include "crow.h"
-#include "crow/middlewares/cors.h"
+#include "crow_all.h"
 #include <cstdio>
 #include <stdio.h>
 #include <unordered_map>
@@ -412,6 +411,7 @@ std::unordered_map<int, std::vector<int>> decipherRoutes(RoutingContext &ctx)
 
 int main()
 {
+    std::cout << Utils::GetEnv("PORT", "8000") << "\n";
     const auto PORT = std::stoi(Utils::GetEnv("PORT", "8000"));
 
     crow::App<crow::CORSHandler> app;
@@ -747,11 +747,11 @@ int main()
             response["timestamp"] = std::time(nullptr);
             return crow::response(200, response); });
 
-    // Optional: Add a simple root endpoint
+    // Optional: Add a simple root endpointx
     CROW_ROUTE(app, "/").methods(crow::HTTPMethod::Get)(
         [](const crow::request &req)
         {
-            return crow::response(200, "Crow Backend Server is running!");
+            return crow::response(200, "Crow Backend Server is running! UPDATED SERVER!!!");
         });
 
     CROW_ROUTE(app, "/").methods(crow::HTTPMethod::Post, crow::HTTPMethod::Options)(
@@ -759,11 +759,13 @@ int main()
         {
             if (req.method == crow::HTTPMethod::Options)
             {
-                crow::response res(200);
+                auto res = crow::response();
                 res.set_header("Access-Control-Allow-Origin", "*");
-                res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-                res.set_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+                res.set_header("Access-Control-Allow-Headers", "*");
+                res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
                 res.set_header("Access-Control-Max-Age", "86400");
+                res.set_header("Content-Length", "0");
+                res.code = 200;
                 return res;
             }
             crow::json::wvalue data;
@@ -775,10 +777,16 @@ int main()
     CROW_CATCHALL_ROUTE(app)(
         [](const crow::request &req)
         {
-            return crow::response(200, "No route found.");
+            crow::response res;
+            res.code = 200;
+            res.body = "Catch-all response";
+            res.set_header("Content-Length", std::to_string(res.body.length()));
+            res.set_header("Content-Type", "text/plain");
+            res.set_header("Connection", "close");
+            return res;
         });
 
-    app.port(PORT).bindaddr("172.31.5.84").multithreaded().run();
+    app.port(PORT).multithreaded().run();
 
     return 0;
 }
