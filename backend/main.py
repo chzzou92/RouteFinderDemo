@@ -157,7 +157,7 @@ def find_route(
 
             heapq.heappush(q, (newTime, neighbor, newSet, newPath, new_cInCar))
 
-    # Print stored times like the original code (optional)
+    # Print stored times like the original code 
     for (from_node, to_node), time_val in ctx.storedTimes.items():
         print(f"({from_node}, {to_node}) => {time_val}")
 
