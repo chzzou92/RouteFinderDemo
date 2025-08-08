@@ -107,7 +107,7 @@ std::string roleToString(Coord::Role role)
         return "Unknown";
     }
 }
-// A small helper to capture libcurl’s response into a std::string
+// A small helper to capture libcurl's response into a std::string
 static size_t _curlWrite(void *buf, size_t size, size_t nmemb, void *up)
 {
     std::string *resp = static_cast<std::string *>(up);
@@ -152,7 +152,7 @@ std::string httpPost(const std::string &url, const std::string &jsonBody)
 }
 
 // should be in a sep file
-//   getTime uses Google’s Routes API
+//   getTime uses Google's Routes API
 int getTime(const Coord &start, const Coord &end)
 {
     // 1) Build the Distance Matrix GET URL
@@ -414,377 +414,355 @@ int main()
     std::cout << Utils::GetEnv("PORT", "8000") << "\n";
     const auto PORT = std::stoi(Utils::GetEnv("PORT", "8000"));
 
+    // Enable CORS
     crow::App<crow::CORSHandler> app;
+
+    // Customize CORS (following documentation structure)
     auto &cors = app.get_middleware<crow::CORSHandler>();
 
-    cors.global()
-        .origin("*") // frontend host
-        .headers(
-            "Accept",
-            "Origin",
-            "Content-Type",
-            "Authorization",
-            "Refresh")
-        .methods(
-            crow::HTTPMethod::GET,
-            crow::HTTPMethod::POST,
-            crow::HTTPMethod::OPTIONS,
-            crow::HTTPMethod::HEAD,
-            crow::HTTPMethod::PUT,
-            crow::HTTPMethod::DELETE);
+    // Warning!
+    // If you want to use CORS with OPTIONS cache on browser requests,
+    // be sure to specify each headers you use, please do not use "*"
+    // else otherwise the browser will ignore you
+
+    // clang-format off
+    cors
+      .global()
+        .origin("*")  // You can change this to specific domain if needed
+        .headers("Accept", "Origin", "Content-Type", "Authorization", "Refresh", "X-Custom-Header", "Upgrade-Insecure-Requests")
+        .methods("POST"_method, "GET"_method, "OPTIONS"_method, "HEAD"_method, "PUT"_method, "DELETE"_method)
+        .max_age(86400)  // 24 hours cache for preflight
+      .prefix("/get-data")
+        .origin("*")  // Specific origin for this route if needed
+      .prefix("/health")
+        .origin("*")
+      .prefix("/nocors")  // Example of a route that ignores CORS
+        .ignore();
+    // clang-format on
 
     CROW_ROUTE(app, "/get-data").methods(crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)([](const crow::request &req)
                                                                                             {
-        // Handle preflight OPTIONS request
-    if (req.method == crow::HTTPMethod::Options) {
-        crow::response res(200);
-        res.set_header("Access-Control-Allow-Origin", "*");
-        res.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-        res.set_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        res.set_header("Access-Control-Max-Age", "86400");
-        return res;
-    }
-    std::cout << "Raw POST body: " << req.body << "\n";
-    
-    // parse JSON 
-    auto j = crow::json::load(req.body);
-    if (!j) {
-        std::cerr << "Invalid JSON\n";
-        return crow::response(400, "Bad JSON");
-    }
-    std::cout << "Parsed JSON: " << j << "\n";
-
-    std::vector<Coord> nodes;
-    std::unordered_map<Coord,int,CoordHash> indexOf;
-    std::vector<std::pair<std::pair<double,double>,std::pair<double,double>>> orderedPaxList;
-    std::vector<std::pair<double,double>> orderedDriList;
-    // extract passengers 
-    if (j.has("passengers") && j["passengers"].t() == crow::json::type::List) {
-        auto& paxList = j["passengers"];
-        std::cout << "Got " << paxList.size() << " passenger entries\n";
-
-        // each entry is itself a 2-element list of [lat,lng] pairs
-        for (size_t i = 0; i < paxList.size(); ++i) {
-            auto& pairArr = paxList[i];  // this is also an rvalue[List]
-            if (pairArr.size() != 2) continue;
-                // pull out the two coords
-                std::pair<double,double> srcCoords = {pairArr[0][0].d(), pairArr[0][1].d()};
-                std::pair<double,double> destCoords = {pairArr[1][0].d(), pairArr[1][1].d()};
-                std::pair<std::pair<double,double>,std::pair<double,double>> passengerCoords = {srcCoords, destCoords};
-                orderedPaxList.push_back(passengerCoords);
+        // Handle preflight OPTIONS request (CORS middleware should handle this automatically)
+        if (req.method == crow::HTTPMethod::Options) {
+            crow::response res(200);
+            return res;
         }
-    }
-    else {
-        std::cout << "No passengers array found\n";
-    }
+        
+        std::cout << "Raw POST body: " << req.body << "\n";
+        
+        // parse JSON 
+        auto j = crow::json::load(req.body);
+        if (!j) {
+            std::cerr << "Invalid JSON\n";
+            return crow::response(400, "Bad JSON");
+        }
+        std::cout << "Parsed JSON: " << j << "\n";
+
+        std::vector<Coord> nodes;
+        std::unordered_map<Coord,int,CoordHash> indexOf;
+        std::vector<std::pair<std::pair<double,double>,std::pair<double,double>>> orderedPaxList;
+        std::vector<std::pair<double,double>> orderedDriList;
+        
+        // extract passengers 
+        if (j.has("passengers") && j["passengers"].t() == crow::json::type::List) {
+            auto& paxList = j["passengers"];
+            std::cout << "Got " << paxList.size() << " passenger entries\n";
+
+            // each entry is itself a 2-element list of [lat,lng] pairs
+            for (size_t i = 0; i < paxList.size(); ++i) {
+                auto& pairArr = paxList[i];  // this is also an rvalue[List]
+                if (pairArr.size() != 2) continue;
+                    // pull out the two coords
+                    std::pair<double,double> srcCoords = {pairArr[0][0].d(), pairArr[0][1].d()};
+                    std::pair<double,double> destCoords = {pairArr[1][0].d(), pairArr[1][1].d()};
+                    std::pair<std::pair<double,double>,std::pair<double,double>> passengerCoords = {srcCoords, destCoords};
+                    orderedPaxList.push_back(passengerCoords);
+            }
+        }
+        else {
+            std::cout << "No passengers array found\n";
+        }
 
         // extract drivers
-    if (j.has("drivers") && j["drivers"].t() == crow::json::type::List) {
-        auto& driList = j["drivers"];
-        std::cout << "Got " << driList.size() << " driver entries\n";
+        if (j.has("drivers") && j["drivers"].t() == crow::json::type::List) {
+            auto& driList = j["drivers"];
+            std::cout << "Got " << driList.size() << " driver entries\n";
 
-        // each entry is itself a one element list of [lat,lng] pairs
-        for (size_t i = 0; i < driList.size(); ++i) {
-            auto& pairArr = driList[i];  // this is also an rvalue[List]
-                // pull out just one coord
-                std::pair<double,double> srcCoords = {pairArr[0].d(), pairArr[1].d()};
-                orderedDriList.push_back(srcCoords);
-        }
-    }
-    else {
-        std::cout << "No drivers array found\n";
-    }
-
-
-    //print out of orderedPaxList
-    std::cout << "Print out of orderedPaxList: \n";
-    for (int i = 0; i<orderedPaxList.size();i++){
-        std::cout << "[(" << 
-        orderedPaxList[i].first.first << ", " << 
-        orderedPaxList[i].first.second << "), " << "(" << 
-        orderedPaxList[i].second.first << ", " << 
-        orderedPaxList[i].second.second << ")]\n";
-    }
-
-    
-    
-    //consructing of adjacencylist 
-    //1) insert drivers 
-    for (auto const &drv : orderedDriList) {
-        Coord c{ drv.first, drv.second, Coord::Role::Driver };
-        if (indexOf.find(c) == indexOf.end()) {
-            int idx = static_cast<int>(nodes.size());
-            nodes.push_back(c);
-            indexOf[c] = idx;
-        }
-    }
-    RoutingContext ctx;
-    int D = static_cast<int>(nodes.size()); 
-    ctx.numOfDrivers = D;
-
-    // insert passengers src
-    for (auto const &pr : orderedPaxList) {
-        auto const &srcPair = pr.first;
-        Coord c{ srcPair.first, srcPair.second, Coord::Role::PassengerSrc };
-        if (indexOf.find(c) == indexOf.end()) {
-            int newIdx = static_cast<int>(nodes.size());
-            nodes.push_back(c);
-            indexOf[c] = newIdx;
-        }
-    }
-    int totalAfterSrc = static_cast<int>(nodes.size());
-    int P = totalAfterSrc - D;  
-    // P = number of unique passenger‐src indices 
-    // (these occupy [D .. D+P-1]).
-    ctx.numOfPassengerSources = P;
-    //insert all passenger‐dst coordinates:
-    for (auto const &pr : orderedPaxList) {
-        auto const &dstPair = pr.second;
-        Coord c{ dstPair.first, dstPair.second, Coord::Role::PassengerDst };
-        if (indexOf.find(c) == indexOf.end()) {
-            int newIdx = static_cast<int>(nodes.size());
-            nodes.push_back(c);
-            indexOf[c] = newIdx;
-        }
-    }
-    ctx.nodes = nodes;
-
-    std::unordered_map<int, int> sourceToDest;
-    std::unordered_map<int, int> destToSource;
-    std::unordered_set<int> sourceSet;
-    std::unordered_set<int> destSet;
-
-    //constructing 2 maps between source and dest and dest and source 
-    for (auto const &pr : orderedPaxList){
-        auto const &srcPair = pr.first;
-        auto const &dstPair = pr.second;
-        Coord src{ srcPair.first, srcPair.second, Coord::Role::PassengerSrc };
-        Coord dest{ dstPair.first, dstPair.second, Coord::Role::PassengerDst };
-        auto const srcIndex = indexOf[src];
-        auto const dstIndex = indexOf[dest];
-        sourceSet.insert(srcIndex);
-        destSet.insert(dstIndex);
-        sourceToDest[srcIndex] = dstIndex;
-        destToSource[dstIndex] = srcIndex;
-    }
-    
-    ctx.destSet = destSet;
-    ctx.sourceSet = sourceSet;
-    ctx.sourceToDest = sourceToDest;
-    ctx.destToSource = destToSource;
-
-    int N = static_cast<int>(nodes.size());
-    int Q = N - (D + P);
-    ctx.numOfPassengerDest = Q;
-
-    auto assignmentRes = decipherRoutes(ctx);
-
-    //setOfPaths [time, path] -> of each driver
-    std::unordered_set<std::pair<int, std::vector<int>>, PathHash, PathEqual> setOfPaths;
-
-    if (assignmentRes.empty()){
-        std::cout << "it's empty";
-    // Q = number of unique passenger‐dst indices 
-        // (these occupy [D+P .. D+P+Q-1]).
-
-        std::cout << "Total unique nodes (drivers + passenger src/dst): " << N << "\n";
-        std::cout << "  Drivers: indices [0 .. " << (D - 1) << "]\n";
-        std::cout << "  Passenger-src: indices [ " << D << " .. " << (D + P - 1) << " ]\n";
-        std::cout << "  Passenger-dst: indices [ " << (D + P) << " .. " << (D + P + Q - 1) << " ]\n\n";
-
-        std::vector<std::vector<int>> adj(N);
-        //drivers 
-        for (int i = 0; i < D; ++i){
-            //driver i -> all passengers source
-            for (int j = D; j < D + P; ++j){
-                adj[i].push_back(j);
+            // each entry is itself a one element list of [lat,lng] pairs
+            for (size_t i = 0; i < driList.size(); ++i) {
+                auto& pairArr = driList[i];  // this is also an rvalue[List]
+                    // pull out just one coord
+                    std::pair<double,double> srcCoords = {pairArr[0].d(), pairArr[1].d()};
+                    orderedDriList.push_back(srcCoords);
             }
         }
-        //passengers source and dest 
-        for (int i = D; i < D + P + Q; ++i) {
-                for (int j = D; j < D + P + Q; ++j){
-                    if (i == j) continue;
+        else {
+            std::cout << "No drivers array found\n";
+        }
+
+        //print out of orderedPaxList
+        std::cout << "Print out of orderedPaxList: \n";
+        for (int i = 0; i<orderedPaxList.size();i++){
+            std::cout << "[(" << 
+            orderedPaxList[i].first.first << ", " << 
+            orderedPaxList[i].first.second << "), " << "(" << 
+            orderedPaxList[i].second.first << ", " << 
+            orderedPaxList[i].second.second << ")]\n";
+        }
+        
+        //consructing of adjacencylist 
+        //1) insert drivers 
+        for (auto const &drv : orderedDriList) {
+            Coord c{ drv.first, drv.second, Coord::Role::Driver };
+            if (indexOf.find(c) == indexOf.end()) {
+                int idx = static_cast<int>(nodes.size());
+                nodes.push_back(c);
+                indexOf[c] = idx;
+            }
+        }
+        RoutingContext ctx;
+        int D = static_cast<int>(nodes.size()); 
+        ctx.numOfDrivers = D;
+
+        // insert passengers src
+        for (auto const &pr : orderedPaxList) {
+            auto const &srcPair = pr.first;
+            Coord c{ srcPair.first, srcPair.second, Coord::Role::PassengerSrc };
+            if (indexOf.find(c) == indexOf.end()) {
+                int newIdx = static_cast<int>(nodes.size());
+                nodes.push_back(c);
+                indexOf[c] = newIdx;
+            }
+        }
+        int totalAfterSrc = static_cast<int>(nodes.size());
+        int P = totalAfterSrc - D;  
+        // P = number of unique passenger‐src indices 
+        // (these occupy [D .. D+P-1]).
+        ctx.numOfPassengerSources = P;
+        //insert all passenger‐dst coordinates:
+        for (auto const &pr : orderedPaxList) {
+            auto const &dstPair = pr.second;
+            Coord c{ dstPair.first, dstPair.second, Coord::Role::PassengerDst };
+            if (indexOf.find(c) == indexOf.end()) {
+                int newIdx = static_cast<int>(nodes.size());
+                nodes.push_back(c);
+                indexOf[c] = newIdx;
+            }
+        }
+        ctx.nodes = nodes;
+
+        std::unordered_map<int, int> sourceToDest;
+        std::unordered_map<int, int> destToSource;
+        std::unordered_set<int> sourceSet;
+        std::unordered_set<int> destSet;
+
+        //constructing 2 maps between source and dest and dest and source 
+        for (auto const &pr : orderedPaxList){
+            auto const &srcPair = pr.first;
+            auto const &dstPair = pr.second;
+            Coord src{ srcPair.first, srcPair.second, Coord::Role::PassengerSrc };
+            Coord dest{ dstPair.first, dstPair.second, Coord::Role::PassengerDst };
+            auto const srcIndex = indexOf[src];
+            auto const dstIndex = indexOf[dest];
+            sourceSet.insert(srcIndex);
+            destSet.insert(dstIndex);
+            sourceToDest[srcIndex] = dstIndex;
+            destToSource[dstIndex] = srcIndex;
+        }
+        
+        ctx.destSet = destSet;
+        ctx.sourceSet = sourceSet;
+        ctx.sourceToDest = sourceToDest;
+        ctx.destToSource = destToSource;
+
+        int N = static_cast<int>(nodes.size());
+        int Q = N - (D + P);
+        ctx.numOfPassengerDest = Q;
+
+        auto assignmentRes = decipherRoutes(ctx);
+
+        //setOfPaths [time, path] -> of each driver
+        std::unordered_set<std::pair<int, std::vector<int>>, PathHash, PathEqual> setOfPaths;
+
+        if (assignmentRes.empty()){
+            std::cout << "it's empty";
+        // Q = number of unique passenger‐dst indices 
+            // (these occupy [D+P .. D+P+Q-1]).
+
+            std::cout << "Total unique nodes (drivers + passenger src/dst): " << N << "\n";
+            std::cout << "  Drivers: indices [0 .. " << (D - 1) << "]\n";
+            std::cout << "  Passenger-src: indices [ " << D << " .. " << (D + P - 1) << " ]\n";
+            std::cout << "  Passenger-dst: indices [ " << (D + P) << " .. " << (D + P + Q - 1) << " ]\n\n";
+
+            std::vector<std::vector<int>> adj(N);
+            //drivers 
+            for (int i = 0; i < D; ++i){
+                //driver i -> all passengers source
+                for (int j = D; j < D + P; ++j){
                     adj[i].push_back(j);
-            }
-        }
-    // 5) Print for every node: its own (lat,lng), then all adjacent coords
-        for (int i = 0; i < N; ++i) {
-            const Coord &me = nodes[i];
-            std::cout << "Node " << i << " (lat=" << me.lat
-                    << ", lng=" << me.lng << ", type=" << roleToString(me.role) << "):\n";
-
-            // Are we in the driver block or passenger block?
-            if (i < D) {
-                std::cout << "  [driver-node] -> Neighbors:\n";
-            } else {
-                std::cout << "  [passenger-node] -> Neighbors:\n";
-            }
-
-            for (int nb : adj[i]) {
-                const Coord &c = nodes[nb];
-                std::cout << "    -> Node " << nb
-                        << " at (lat=" << c.lat
-                        << ", lng=" << c.lng << ", type=" << roleToString(c.role) << ")\n";
-            }
-            std::cout << "\n";
-        }
-
-        std::cout << "=== sourceToDest Map ===\n";
-        for (const auto& [src, dst] : sourceToDest) {
-            std::cout << "  Source " << src << " -> Destination " << dst << "\n";
-        }
-
-        std::cout << "\n=== destToSource Map ===\n";
-        for (const auto& [dst, src] : destToSource) {
-            std::cout << "  Destination " << dst << " -> Source " << src << "\n";
-        }
-    auto [shortestTime, path] = findRoute(adj, adj.size(), 0, ctx);
-    setOfPaths.insert({shortestTime, path});
-    } else {
-        for (const auto& [driverIdx, assignedSources] : assignmentRes) {
-                //construct sub adj list 
-                std::vector<std::vector<int>> currentSubAdj;
-                currentSubAdj.resize(nodes.size());
-                for (auto const& source : assignedSources){
-                    //driver i -> all passengers source
-                    currentSubAdj[driverIdx].push_back(source);
                 }
-                int assignedSourcesSize = assignedSources.size();
-                //passenger source -> every other source / dest besides itself
-                for (int i = 0; i < assignedSourcesSize; i++){
-                    int src = assignedSources[i];
-                    for (int j = 0; j < assignedSourcesSize; j++){
-                        auto otherSrc = assignedSources[j];
-                        int otherDest = sourceToDest[otherSrc];
-                        if (i != j){
-                            currentSubAdj[src].push_back(otherSrc);
+            }
+            //passengers source and dest 
+            for (int i = D; i < D + P + Q; ++i) {
+                    for (int j = D; j < D + P + Q; ++j){
+                        if (i == j) continue;
+                        adj[i].push_back(j);
+                }
+            }
+        // 5) Print for every node: its own (lat,lng), then all adjacent coords
+            for (int i = 0; i < N; ++i) {
+                const Coord &me = nodes[i];
+                std::cout << "Node " << i << " (lat=" << me.lat
+                        << ", lng=" << me.lng << ", type=" << roleToString(me.role) << "):\n";
+
+                // Are we in the driver block or passenger block?
+                if (i < D) {
+                    std::cout << "  [driver-node] -> Neighbors:\n";
+                } else {
+                    std::cout << "  [passenger-node] -> Neighbors:\n";
+                }
+
+                for (int nb : adj[i]) {
+                    const Coord &c = nodes[nb];
+                    std::cout << "    -> Node " << nb
+                            << " at (lat=" << c.lat
+                            << ", lng=" << c.lng << ", type=" << roleToString(c.role) << ")\n";
+                }
+                std::cout << "\n";
+            }
+
+            std::cout << "=== sourceToDest Map ===\n";
+            for (const auto& [src, dst] : sourceToDest) {
+                std::cout << "  Source " << src << " -> Destination " << dst << "\n";
+            }
+
+            std::cout << "\n=== destToSource Map ===\n";
+            for (const auto& [dst, src] : destToSource) {
+                std::cout << "  Destination " << dst << " -> Source " << src << "\n";
+            }
+        auto [shortestTime, path] = findRoute(adj, adj.size(), 0, ctx);
+        setOfPaths.insert({shortestTime, path});
+        } else {
+            for (const auto& [driverIdx, assignedSources] : assignmentRes) {
+                    //construct sub adj list 
+                    std::vector<std::vector<int>> currentSubAdj;
+                    currentSubAdj.resize(nodes.size());
+                    for (auto const& source : assignedSources){
+                        //driver i -> all passengers source
+                        currentSubAdj[driverIdx].push_back(source);
+                    }
+                    int assignedSourcesSize = assignedSources.size();
+                    //passenger source -> every other source / dest besides itself
+                    for (int i = 0; i < assignedSourcesSize; i++){
+                        int src = assignedSources[i];
+                        for (int j = 0; j < assignedSourcesSize; j++){
+                            auto otherSrc = assignedSources[j];
+                            int otherDest = sourceToDest[otherSrc];
+                            if (i != j){
+                                currentSubAdj[src].push_back(otherSrc);
+                            }
+                            currentSubAdj[src].push_back(otherDest);
                         }
-                        currentSubAdj[src].push_back(otherDest);
                     }
-                }
-                //dest -> every source/dest besides itself 
-                for (int i = 0; i < assignedSourcesSize; i++){
-                    int dest = sourceToDest[assignedSources[i]];
-                    for (int j = 0; j < assignedSourcesSize; j++){
-                        int otherSrc = assignedSources[j];
-                        int otherDest = sourceToDest[otherSrc];
-                        if (i != j){
-                            currentSubAdj[dest].push_back(otherDest);
+                    //dest -> every source/dest besides itself 
+                    for (int i = 0; i < assignedSourcesSize; i++){
+                        int dest = sourceToDest[assignedSources[i]];
+                        for (int j = 0; j < assignedSourcesSize; j++){
+                            int otherSrc = assignedSources[j];
+                            int otherDest = sourceToDest[otherSrc];
+                            if (i != j){
+                                currentSubAdj[dest].push_back(otherDest);
+                            }
+                            currentSubAdj[dest].push_back(otherSrc);
                         }
-                        currentSubAdj[dest].push_back(otherSrc);
                     }
-                }
-                
-                std::cout << "=== Subgraph for Driver " << driverIdx << " ===\n";
-                for (int i = 0; i < currentSubAdj.size(); ++i) {
-                    // Only print nodes that have neighbors
-                    if (currentSubAdj[i].empty()) continue;
+                    
+                    std::cout << "=== Subgraph for Driver " << driverIdx << " ===\n";
+                    for (int i = 0; i < currentSubAdj.size(); ++i) {
+                        // Only print nodes that have neighbors
+                        if (currentSubAdj[i].empty()) continue;
 
-                    const Coord &me = nodes[i];
-                    std::cout << "Node " << i << " (lat=" << me.lat
-                            << ", lng=" << me.lng << ", type=" << roleToString(me.role) << "):\n";
-
-                    if (i < D) {
-                        std::cout << "  [driver-node] -> Neighbors:\n";
-                    } else {
-                        std::cout << "  [passenger-node] -> Neighbors:\n";
-                    }
-
-                    for (int nb : currentSubAdj[i]) {
-                        const Coord &c = nodes[nb];
-                        std::cout << "    -> Node " << nb
-                                << " at (lat=" << c.lat
-                                << ", lng=" << c.lng << ", type=" << roleToString(c.role) << ")\n";
-                    }
-                    std::cout << "\n";
-                }
-                
-                auto [shortestTime, path] = findRoute(currentSubAdj, assignedSourcesSize * 2, driverIdx, ctx);
-
-                std::cout << "Shortest time: " << shortestTime << "\n";   
-                    std::cout << path.size() << "\n";   
-                    for (int i : path) {
                         const Coord &me = nodes[i];
                         std::cout << "Node " << i << " (lat=" << me.lat
-                                << ", lng=" << me.lng << "):\n";
+                                << ", lng=" << me.lng << ", type=" << roleToString(me.role) << "):\n";
 
-                        // Are we in the driver block or passenger block?
                         if (i < D) {
                             std::cout << "  [driver-node] -> Neighbors:\n";
                         } else {
                             std::cout << "  [passenger-node] -> Neighbors:\n";
                         }
 
+                        for (int nb : currentSubAdj[i]) {
+                            const Coord &c = nodes[nb];
+                            std::cout << "    -> Node " << nb
+                                    << " at (lat=" << c.lat
+                                    << ", lng=" << c.lng << ", type=" << roleToString(c.role) << ")\n";
+                        }
                         std::cout << "\n";
                     }
-                setOfPaths.insert({shortestTime, path});
+                    
+                    auto [shortestTime, path] = findRoute(currentSubAdj, assignedSourcesSize * 2, driverIdx, ctx);
 
-            }
-    }
-    
-    
-   crow::json::wvalue data;
-    data["success"] = true;
-    data["message"] = "Request handled successfully";
+                    std::cout << "Shortest time: " << shortestTime << "\n";   
+                        std::cout << path.size() << "\n";   
+                        for (int i : path) {
+                            const Coord &me = nodes[i];
+                            std::cout << "Node " << i << " (lat=" << me.lat
+                                    << ", lng=" << me.lng << "):\n";
 
-    int pathIdx = 0;
-    for (const auto& [shortestTime, path] : setOfPaths) {
-        data["paths"][pathIdx]["shortestTime"] = shortestTime;
-        for (int i = 0; i < path.size(); ++i) {
-            data["paths"][pathIdx]["path"][i][0] = nodes[path[i]].lng;
-            data["paths"][pathIdx]["path"][i][1] = nodes[path[i]].lat;
+                            // Are we in the driver block or passenger block?
+                            if (i < D) {
+                                std::cout << "  [driver-node] -> Neighbors:\n";
+                            } else {
+                                std::cout << "  [passenger-node] -> Neighbors:\n";
+                            }
+
+                            std::cout << "\n";
+                        }
+                    setOfPaths.insert({shortestTime, path});
+
+                }
         }
-        ++pathIdx;
-    }
+        
+        crow::json::wvalue data;
+        data["success"] = true;
+        data["message"] = "Request handled successfully";
 
-    crow::response res(data);
-    return res; });
+        int pathIdx = 0;
+        for (const auto& [shortestTime, path] : setOfPaths) {
+            data["paths"][pathIdx]["shortestTime"] = shortestTime;
+            for (int i = 0; i < path.size(); ++i) {
+                data["paths"][pathIdx]["path"][i][0] = nodes[path[i]].lng;
+                data["paths"][pathIdx]["path"][i][1] = nodes[path[i]].lat;
+            }
+            ++pathIdx;
+        }
+
+        crow::response res(data);
+        return res; });
+
     // Health check endpoint for ALB
     CROW_ROUTE(app, "/health").methods(crow::HTTPMethod::Get)([](const crow::request &req)
                                                               {
-            crow::json::wvalue response;
-            response["status"] = "healthy";
-            response["timestamp"] = std::time(nullptr);
-            return crow::response(200, response); });
+        crow::json::wvalue response;
+        response["status"] = "healthy";
+        response["timestamp"] = std::time(nullptr);
+        return crow::response(200, response); });
 
-    // Optional: Add a simple root endpointx
-    CROW_ROUTE(app, "/").methods(crow::HTTPMethod::Get)(
-        [](const crow::request &req)
-        {
-            return crow::response(200, "Crow Backend Server is running! UPDATED SERVER!!!");
-        });
+    // Root endpoint
+    CROW_ROUTE(app, "/")
+    ([]()
+     { return "Check Access-Control-Allow-Methods header"; });
 
-    CROW_ROUTE(app, "/").methods(crow::HTTPMethod::Post, crow::HTTPMethod::Options)(
-        [](const crow::request &req)
-        {
-            if (req.method == crow::HTTPMethod::Options)
-            {
-                auto res = crow::response();
-                res.set_header("Access-Control-Allow-Origin", "*");
-                res.set_header("Access-Control-Allow-Headers", "*");
-                res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-                res.set_header("Access-Control-Max-Age", "86400");
-                res.set_header("Content-Length", "0");
-                res.code = 200;
-                return res;
-            }
-            crow::json::wvalue data;
-            data["success"] = true;
-            data["message"] = req.body;
-            return crow::response(200, data);
-        });
+    // CORS test endpoint (from documentation)
+    CROW_ROUTE(app, "/cors")
+    ([]()
+     { return "Check Access-Control-Allow-Origin header"; });
 
-    CROW_CATCHALL_ROUTE(app)(
-        [](const crow::request &req)
-        {
-            crow::response res;
-            res.code = 200;
-            res.body = "Catch-all response";
-            res.set_header("Content-Length", std::to_string(res.body.length()));
-            res.set_header("Content-Type", "text/plain");
-            res.set_header("Connection", "close");
-            return res;
-        });
+    // Example endpoint that ignores CORS
+    CROW_ROUTE(app, "/nocors")
+    ([]()
+     { return "This endpoint ignores CORS settings"; });
 
     app.port(PORT).multithreaded().run();
 
