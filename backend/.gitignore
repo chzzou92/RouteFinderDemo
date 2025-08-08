@@ -6,6 +6,7 @@ build*
 bin
 lib
 out
+env.h
 
 CMakeSettings.json
 vcpkg-configuration.json
