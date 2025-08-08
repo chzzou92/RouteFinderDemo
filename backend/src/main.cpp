@@ -439,7 +439,27 @@ int main()
       .prefix("/nocors")  // Example of a route that ignores CORS
         .ignore();
     // clang-format on
-
+    // Catch-all OPTIONS (uses a dynamic "<path>" parameter to match remaining path)
+    CROW_ROUTE(app, "/<path>")
+    .methods(crow::HTTPMethod::Options)
+    ([](const crow::request& req, const std::string& path) {
+        crow::response res;
+        auto origin = req.get_header_value("Origin");
+        if (origin.empty()) origin = "*";
+        res.add_header("Access-Control-Allow-Origin", origin);
+        res.add_header("Vary", "Origin");
+        res.add_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE, HEAD");
+        auto acrh = req.get_header_value("Access-Control-Request-Headers");
+        if (acrh.empty()) {
+            acrh = "Accept, Origin, Content-Type, Authorization, Refresh, X-Custom-Header, Upgrade-Insecure-Requests";
+        }
+        res.add_header("Access-Control-Allow-Headers", acrh);
+        res.add_header("Access-Control-Max-Age", "86400");
+        res.code = 204;             // No content for preflight
+        res.body = "";
+        return res;
+    });
+    
     CROW_ROUTE(app, "/get-data").methods(crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)([](const crow::request &req)
                                                                                             {
         // Handle preflight OPTIONS request (CORS middleware should handle this automatically)
