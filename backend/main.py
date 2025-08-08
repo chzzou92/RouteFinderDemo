@@ -15,16 +15,9 @@ load_dotenv()
 
 app = FastAPI()
 
-# Configure CORS with separate localhost and remote origins
-localhost_origins = os.getenv("CORS_LOCALHOST", "http://localhost:5173").split(",")
-remote_origins = os.getenv("CORS_REMOTE", "").split(",")
-
-# Combine and clean origins
-origins = []
-for origin in localhost_origins + remote_origins:
-    clean_origin = origin.strip()
-    if clean_origin:  # Only add non-empty origins
-        origins.append(clean_origin)
+# Configure CORS to allow origins from environment variable
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+origins = [origin.strip() for origin in cors_origins]
 
 app.add_middleware(
     CORSMiddleware,
