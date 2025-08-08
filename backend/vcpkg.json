@@ -1,9 +1,0 @@
-{
-  "dependencies": [
-    "asio",
-    "crow",
-    "openssl",
-    "zlib",
-    "curl"
-  ]
-}
