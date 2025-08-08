@@ -10,12 +10,21 @@ import sys
 import uvicorn
 from enum import Enum
 
+# Load environment variables
+load_dotenv()
+
 app = FastAPI()
 
-# Configure CORS to allow your frontend origin
-origins = [
-    "http://localhost:5173",  # your frontend origin
-]
+# Configure CORS with separate localhost and remote origins
+localhost_origins = os.getenv("CORS_LOCALHOST", "http://localhost:5173").split(",")
+remote_origins = os.getenv("CORS_REMOTE", "").split(",")
+
+# Combine and clean origins
+origins = []
+for origin in localhost_origins + remote_origins:
+    clean_origin = origin.strip()
+    if clean_origin:  # Only add non-empty origins
+        origins.append(clean_origin)
 
 app.add_middleware(
     CORSMiddleware,
