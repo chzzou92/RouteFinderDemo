@@ -15,13 +15,11 @@ load_dotenv()
 
 app = FastAPI()
 
-# Configure CORS to allow origins from environment variable
 cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 origins = [origin.strip() for origin in cors_origins]
 
 @app.options("/get-data")
 async def preflight_get_data(request: Request):
-    # debug log so you can see what's coming in from the browser
     headers = dict(request.headers)
     print("[PRELIGHT LOG] OPTIONS /get-data headers:", headers)
 
