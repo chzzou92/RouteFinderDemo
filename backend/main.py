@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import os
@@ -19,6 +19,24 @@ app = FastAPI()
 cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 origins = [origin.strip() for origin in cors_origins]
 
+@app.options("/get-data")
+async def preflight_get_data(request: Request):
+    # debug log so you can see what's coming in from the browser
+    headers = dict(request.headers)
+    print("[PRELIGHT LOG] OPTIONS /get-data headers:", headers)
+
+    origin = headers.get("origin", "*")
+    acrh = headers.get("access-control-request-headers", "Content-Type")
+    acm = headers.get("access-control-request-method", "POST, GET, OPTIONS")
+
+    return Response(status_code=204, headers={
+        "Access-Control-Allow-Origin": origin,
+        "Vary": "Origin",
+        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+        "Access-Control-Allow-Headers": acrh,
+        "Access-Control-Max-Age": "86400",
+    })
+    
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
