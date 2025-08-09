@@ -42,7 +42,7 @@ export default function MapSearch(props) {
 
         //  console.log(place.Dg.location.lat);
         // console.log(place.Dg.location.lng);
-        console.log(placePrediction.Qq.Ph[2].Ph[0]);
+        //console.log(placePrediction.Qq.Ph[2].Ph[0]);
 
         props.loc(placePrediction.Qq.Ph[2].Ph[0]);
         props.cords([place.Dg.location.lat, place.Dg.location.lng]);
