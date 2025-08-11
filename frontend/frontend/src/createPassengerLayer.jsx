@@ -12,9 +12,10 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 export default function createPassengerThreeLayer(
   map,
   modelTransform,
-  gltfPath
+  gltfPath,
+  zoomState
 ) {
-  console.log("createPassengerThreeLayer called:", modelTransform, gltfPath);
+  //console.log("createPassengerThreeLayer called:", modelTransform, gltfPath);
 
   const scene = new THREE.Scene();
   const camera = new THREE.Camera();
@@ -45,14 +46,15 @@ export default function createPassengerThreeLayer(
     antialias: true,
   });
   const name = gltfPath.match(/\/People\/[^/]+\/([^/.]+)\.gltf$/)[1];
-  //console.log(name);
   renderer.autoClear = false;
   return {
     id: `3d-passengers-model-${name}`,
     type: "custom",
     renderingMode: "3d",
     render: (gl, matrix) => {
-     // console.log("Current scale:", modelTransform.scale);
+      const dynamicScale =
+        modelTransform.scaleBase * Math.pow(1.2, 26.0 - zoomState.zoom);
+
       const rotationX = new THREE.Matrix4().makeRotationAxis(
         new THREE.Vector3(1, 0, 0),
         modelTransform.rotateX
@@ -73,13 +75,7 @@ export default function createPassengerThreeLayer(
           modelTransform.translateY,
           modelTransform.translateZ
         )
-        .scale(
-          new THREE.Vector3(
-            modelTransform.scale,
-            -modelTransform.scale,
-            modelTransform.scale
-          )
-        )
+        .scale(new THREE.Vector3(dynamicScale, -dynamicScale, dynamicScale))
         .multiply(rotationX)
         .multiply(rotationY)
         .multiply(rotationZ);

@@ -37,6 +37,8 @@ export default function MainApp() {
   const WomanOffset = { x: 0.00001, y: -0.00001, z: 0.0000004 };
   const assignPathToCarRef = useRef(null);
   const [finalDriverPaths, setFinalDriverPaths] = useState(null);
+  const zoomState = useRef({ zoom: 0 });
+
   const models = [
     { offset: boyOffset, path: "/People/Boy/boy.gltf" },
     { offset: manOffset, path: "/People/Man/man.gltf" },
@@ -62,13 +64,18 @@ export default function MainApp() {
       rotateX: modelRotate[0],
       rotateY: modelRotate[1],
       rotateZ: modelRotate[2],
-      scale: scaleBase * Math.pow(1.2, 22.0 - zoom),
+      scale: scaleBase * Math.pow(1.2, 26.0 - zoom),
       scaleBase,
     };
 
     passengerTransforms.push(modelTransform);
 
-    const newThreeLayer = createPassengerThreeLayer(map, modelTransform, path);
+    const newThreeLayer = createPassengerThreeLayer(
+      map,
+      modelTransform,
+      path,
+      zoomState.current
+    );
     map.addLayer(newThreeLayer);
   }
 
@@ -268,10 +275,6 @@ export default function MainApp() {
       carTransforms.forEach((t) => {
         t.scale = t.scaleBase * Math.pow(1.8, 22.5 - mapRef.current.getZoom());
       });
-      passengerTransforms.forEach((t) => {
-        t.scale = t.scaleBase * Math.pow(1.2, 22.0 - mapRef.current.getZoom());
-      });
-
       map.triggerRepaint();
     });
     map.on("style.load", () => {
@@ -290,6 +293,22 @@ export default function MainApp() {
       map.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    zoomState.current.zoom = mapRef.current.getZoom();
+    mapRef.current.on("move", () => {
+      zoomState.current.zoom = mapRef.current.getZoom();
+      mapRef.current.triggerRepaint();
+    });
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.off("move");
+      }
+    };
+  }, [mapRef]);
 
   useEffect(() => {
     if (loadComplete) {
