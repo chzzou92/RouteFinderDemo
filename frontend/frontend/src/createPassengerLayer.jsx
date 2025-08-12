@@ -35,7 +35,7 @@ export default function createPassengerThreeLayer(
     },
     undefined,
     (error) => {
-      console.error("Error loading GLTF model:", error);
+      console.error("Error loading GLTF model: ", error);
     }
   );
 
