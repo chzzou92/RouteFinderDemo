@@ -1,6 +1,6 @@
 # Car and Passenger Routing Project
 
-![App Screenshot](https://github.com/chzzou92/RouteFinderDemo/blob/main/frontend/frontend/public/Images/app-screenshot.png?raw=true)
+![App Screenshot](https://github.com/chzzou92/RouteFinderDemo/blob/old-main/frontend/frontend/public/Images/app-screenshot.png?raw=true)
 
 ## Live Demo
 
