@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 /**
- * Creates a Three.js custom layer for a Mapbox map.
  *
  * @param {Object} map - Mapbox map object.
  * @param {Object} modelTransform - Object with translation, rotation, and scale.
@@ -53,37 +52,41 @@ export default function createPassengerThreeLayer(
     renderingMode: "3d",
     render: (gl, matrix) => {
       const dynamicScale =
-        modelTransform.scaleBase * Math.pow(1.2, 26.0 - zoomState.zoom);
+        modelTransform.scaleBase * Math.pow(1.8, 15 - zoomState.zoom);
 
-      const rotationX = new THREE.Matrix4().makeRotationAxis(
-        new THREE.Vector3(1, 0, 0),
-        modelTransform.rotateX
+      // Rotations (order: Rz * Ry * Rx or adjust to taste)
+      const rotX = new THREE.Matrix4().makeRotationX(modelTransform.rotateX);
+      const rotY = new THREE.Matrix4().makeRotationY(modelTransform.rotateY);
+      const rotZ = new THREE.Matrix4().makeRotationZ(modelTransform.rotateZ);
+      const rotMat = new THREE.Matrix4()
+        .multiply(rotZ)
+        .multiply(rotY)
+        .multiply(rotX);
+
+      // Scale matrix (negative Y if you still need that flip)
+      const scaleMat = new THREE.Matrix4().makeScale(
+        dynamicScale,
+        -dynamicScale,
+        dynamicScale
       );
-      const rotationY = new THREE.Matrix4().makeRotationAxis(
-        new THREE.Vector3(0, 1, 0),
-        modelTransform.rotateY
+      // Translation matrix (in mercator units, as you already compute)
+      const transMat = new THREE.Matrix4().makeTranslation(
+        modelTransform.translateX,
+        modelTransform.translateY,
+        modelTransform.translateZ
       );
-      const rotationZ = new THREE.Matrix4().makeRotationAxis(
-        new THREE.Vector3(0, 0, 1),
-        modelTransform.rotateZ
-      );
+
+      // Model matrix = T * R * S
+      const modelMat = new THREE.Matrix4()
+        .multiply(transMat)
+        .multiply(scaleMat)
+        .multiply(rotMat);
 
       const m = new THREE.Matrix4().fromArray(matrix);
-      const l = new THREE.Matrix4()
-        .makeTranslation(
-          modelTransform.translateX,
-          modelTransform.translateY,
-          modelTransform.translateZ
-        )
-        .scale(new THREE.Vector3(dynamicScale, -dynamicScale, dynamicScale))
-        .multiply(rotationX)
-        .multiply(rotationY)
-        .multiply(rotationZ);
-      camera.projectionMatrix = m.clone().multiply(l);
+      camera.projectionMatrix = m.clone().multiply(modelMat);
 
       renderer.resetState();
       renderer.render(scene, camera);
-      map.triggerRepaint();
     },
   };
 }

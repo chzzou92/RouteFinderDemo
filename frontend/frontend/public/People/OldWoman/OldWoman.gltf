@@ -21,30 +21,65 @@
 	"nodes":[
 		{
 			"mesh":0,
-			"name":"Mesh_default2_0"
+			"name":"Mesh_default2_0",
+			"translation":[
+				-135.6429443359375,
+				0,
+				67.00049591064453
+			]
 		},
 		{
-			"name":"Mesh_Hair1_0"
+			"name":"Mesh_Hair1_0",
+			"translation":[
+				-135.6429443359375,
+				0,
+				67.00049591064453
+			]
 		},
 		{
 			"mesh":1,
-			"name":"Mesh_Hair1_0.001"
+			"name":"Mesh_Hair1_0.001",
+			"translation":[
+				-135.6429443359375,
+				0,
+				67.00049591064453
+			]
 		},
 		{
 			"mesh":2,
-			"name":"Mesh_Skin1_0"
+			"name":"Mesh_Skin1_0",
+			"translation":[
+				-135.6429443359375,
+				0,
+				67.00049591064453
+			]
 		},
 		{
 			"mesh":3,
-			"name":"Mesh_Wear_3_0"
+			"name":"Mesh_Wear_3_0",
+			"translation":[
+				-135.6429443359375,
+				0,
+				67.00049591064453
+			]
 		},
 		{
 			"mesh":4,
-			"name":"Mesh_Wear_4_0"
+			"name":"Mesh_Wear_4_0",
+			"translation":[
+				-135.6429443359375,
+				0,
+				67.00049591064453
+			]
 		},
 		{
 			"mesh":5,
-			"name":"Mesh_Wear_6_0"
+			"name":"Mesh_Wear_6_0",
+			"translation":[
+				-135.6429443359375,
+				0,
+				67.00049591064453
+			]
 		}
 	],
 	"materials":[

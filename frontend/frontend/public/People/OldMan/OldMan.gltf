@@ -19,23 +19,48 @@
 	"nodes":[
 		{
 			"mesh":0,
-			"name":"OldManDefault"
+			"name":"OldManDefault",
+			"translation":[
+				-150.2425079345703,
+				0,
+				-55.21457290649414
+			]
 		},
 		{
 			"mesh":1,
-			"name":"OldManHair"
+			"name":"OldManHair",
+			"translation":[
+				-150.2425079345703,
+				0,
+				-55.21457290649414
+			]
 		},
 		{
 			"mesh":2,
-			"name":"OldManPants"
+			"name":"OldManPants",
+			"translation":[
+				-150.2425079345703,
+				0,
+				-55.21457290649414
+			]
 		},
 		{
 			"mesh":3,
-			"name":"OldManShirt"
+			"name":"OldManShirt",
+			"translation":[
+				-150.2425079345703,
+				0,
+				-55.21457290649414
+			]
 		},
 		{
 			"mesh":4,
-			"name":"OldManSkin"
+			"name":"OldManSkin",
+			"translation":[
+				-150.2425079345703,
+				0,
+				-55.21457290649414
+			]
 		}
 	],
 	"materials":[

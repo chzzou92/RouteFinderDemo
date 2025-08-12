@@ -20,27 +20,57 @@
 	"nodes":[
 		{
 			"mesh":0,
-			"name":"GirlDefault"
+			"name":"GirlDefault",
+			"translation":[
+				172.54954528808594,
+				0,
+				67.21094512939453
+			]
 		},
 		{
 			"mesh":1,
-			"name":"GirlHair"
+			"name":"GirlHair",
+			"translation":[
+				172.54954528808594,
+				0,
+				67.21094512939453
+			]
 		},
 		{
 			"mesh":2,
-			"name":"GirlPants"
+			"name":"GirlPants",
+			"translation":[
+				172.54954528808594,
+				0,
+				67.21094512939453
+			]
 		},
 		{
 			"mesh":3,
-			"name":"GirlShoes"
+			"name":"GirlShoes",
+			"translation":[
+				172.54954528808594,
+				0,
+				67.21094512939453
+			]
 		},
 		{
 			"mesh":4,
-			"name":"GirlSkin"
+			"name":"GirlSkin",
+			"translation":[
+				172.54954528808594,
+				0,
+				67.21094512939453
+			]
 		},
 		{
 			"mesh":5,
-			"name":"GirlWear"
+			"name":"GirlWear",
+			"translation":[
+				172.54954528808594,
+				0,
+				67.21094512939453
+			]
 		}
 	],
 	"materials":[
@@ -492,7 +522,7 @@
 	"buffers":[
 		{
 			"byteLength":43372,
-			"uri":"girl.bin"
+			"uri":"Girl.bin"
 		}
 	]
 }

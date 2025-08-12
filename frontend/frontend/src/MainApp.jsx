@@ -29,26 +29,20 @@ export default function MainApp() {
     : [-74.4927, 40.4174];
   const modelAltitude = 2;
   const modelRotate = [Math.PI / 2, 0, 0];
-  const boyOffset = { x: 0.000025, y: 0.00001, z: 0.0000004 };
-  const girlOffset = { x: 0.000028, y: -0.00001, z: 0.0000004 };
-  const manOffset = { x: 0.000005, y: 0.00001, z: 0.0000004 };
-  const oldManOffset = { x: -0.000019, y: 0.00001, z: 0.0000004 };
-  const oldWomanOffset = { x: -0.000018, y: -0.00001, z: 0.0000004 };
-  const WomanOffset = { x: 0.00001, y: -0.00001, z: 0.0000004 };
   const assignPathToCarRef = useRef(null);
   const [finalDriverPaths, setFinalDriverPaths] = useState(null);
   const zoomState = useRef({ zoom: 0 });
 
   const models = [
-    { offset: boyOffset, path: "/People/Boy/boy.gltf" },
-    { offset: manOffset, path: "/People/Man/man.gltf" },
-    { offset: oldManOffset, path: "/People/OldMan/OldMan.gltf" },
-    { offset: girlOffset, path: "/People/Girl/girl.gltf" },
-    { offset: oldWomanOffset, path: "/People/OldWoman/OldWoman.gltf" },
-    { offset: WomanOffset, path: "/People/Woman/Woman.gltf" },
+    { path: "/People/Boy/boy.gltf" },
+    { path: "/People/Man/man.gltf" },
+    { path: "/People/OldMan/OldMan.gltf" },
+    { path: "/People/Girl/girl.gltf" },
+    { path: "/People/OldWoman/OldWoman.gltf" },
+    { path: "/People/Woman/Woman.gltf" },
   ];
 
-  function createModel(map, cords, offset, path) {
+  function createModel(map, cords, path) {
     const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
       cords,
       modelAltitude
@@ -58,9 +52,9 @@ export default function MainApp() {
       modelAsMercatorCoordinate.meterInMercatorCoordinateUnits();
 
     const modelTransform = {
-      translateX: modelAsMercatorCoordinate.x + (offset?.x ?? 0),
-      translateY: modelAsMercatorCoordinate.y - (offset?.y ?? 0),
-      translateZ: modelAsMercatorCoordinate.z - (offset?.z ?? 0),
+      translateX: modelAsMercatorCoordinate.x,
+      translateY: modelAsMercatorCoordinate.y,
+      translateZ: modelAsMercatorCoordinate.z,
       rotateX: modelRotate[0],
       rotateY: modelRotate[1],
       rotateZ: modelRotate[2],
@@ -339,7 +333,7 @@ export default function MainApp() {
     p.forEach(([source, dest], index) => {
       const lngLat = [source[1], source[0]];
       const model = models[index % models.length];
-      createModel(mapRef.current, lngLat, model.offset, model.path);
+      createModel(mapRef.current, lngLat, model.path);
       getTime([source[1], source[0]], [dest[1], dest[0]]);
       addMarker(dest[1], dest[0], "black");
       getRoute([source[1], source[0]], [dest[1], dest[0]]);
