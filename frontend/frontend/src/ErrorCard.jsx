@@ -10,6 +10,9 @@ const ErrorCard = ({ type }) => {
     case "too-many-drivers":
       message = "Too many drivers";
       break;
+    case "too-many-drivers-2":
+      message = "Cannot have more drivers than passengers";
+      break;
     case "no-passengers":
       message = "Please add at least one passenger";
       break;

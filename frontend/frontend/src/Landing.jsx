@@ -45,7 +45,9 @@ export default function Landing() {
     }
   };
   const addDrivers = () => {
-    if (drivers < 10) {
+    if (drivers === passengers) {
+      setDriversError(3);
+    } else if (drivers < 10) {
       setDrivers(drivers + 1);
       setDriversError(0);
     } else {
@@ -53,7 +55,7 @@ export default function Landing() {
     }
   };
   const subDrivers = () => {
-    if (drivers > 1) {
+     if (drivers > 1) {
       setDrivers(drivers - 1);
       setDriversError(0);
     } else {
@@ -119,7 +121,7 @@ export default function Landing() {
           <div className="flex flex-row items-center justify-center space-x-4">
             <ButtonGrid buttons={buttonConfig1} />
           </div>
-                    <div className="w-40 h-15 flex flex-row items-center justify-center">
+          <div className="w-40 h-15 flex flex-row items-center justify-center">
             <AnimatePresence>
               {passengerError == 1 && (
                 <motion.div
@@ -183,6 +185,20 @@ export default function Landing() {
                   style={{ position: "relative" }}
                 >
                   <ErrorCard type="no-drivers" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <AnimatePresence>
+              {driversError == 3 && (
+                <motion.div
+                  key={driversError}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ position: "relative" }}
+                >
+                  <ErrorCard type="too-many-drivers-2" />
                 </motion.div>
               )}
             </AnimatePresence>
