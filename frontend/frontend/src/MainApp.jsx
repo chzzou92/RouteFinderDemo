@@ -37,7 +37,7 @@ export default function MainApp() {
     { path: "/People/Boy/boy.gltf" },
     { path: "/People/Man/man.gltf" },
     { path: "/People/OldMan/OldMan.gltf" },
-    { path: "/People/Girl/girl.gltf" },
+    { path: "/People/Girl/Girl.gltf" },
     { path: "/People/OldWoman/OldWoman.gltf" },
     { path: "/People/Woman/Woman.gltf" },
   ];
