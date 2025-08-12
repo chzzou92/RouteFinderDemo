@@ -396,7 +396,7 @@ async def get_data(request: Request):
         for dst, src in destToSource.items():
             print(f"  Destination {dst} -> Source {src}")
 
-        shortestTime, path = find_route(adj, len(adj), 0, ctx)
+        shortestTime, path = find_route(adj, len(adj) -1, 0, ctx)
         setOfPaths.add((shortestTime, tuple(path)))
 
     else:

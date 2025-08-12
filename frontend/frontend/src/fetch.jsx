@@ -24,7 +24,7 @@ function SendData({ setFetchData, drivers, passengers, drawMultipleRoutes }) {
       setError(false);
       console.log(JSON.stringify(payload));
       const res = await fetch(
-        "https://routefinderdemo-production.up.railway.app/get-data",
+        "https://localhost:8080",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
