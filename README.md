@@ -2,12 +2,6 @@
 
 ![App Screenshot](https://github.com/chzzou92/RouteFinderDemo/blob/old-main/frontend/frontend/public/Images/app-screenshot.png?raw=true)
 
-## Live Demo
-
-**[Try the live application here](https://route-finder-demo-git-prod-chzzou92s-projects.vercel.app/)**
-
-*Frontend deployed on Vercel | Backend deployed on Railway*
-
 ## Overview
 
 This project simulates a routing system where each car can hold up to **4 passengers**. Cars dynamically decide whether to pick up or drop off passengers based on the current number of passengers inside the car.
